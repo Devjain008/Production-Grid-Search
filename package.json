@@ -1,0 +1,14 @@
+{
+  "name": "evolve",
+  "version": "2.0.0",
+  "description": "EVOLVE: Autonomous Sandboxed Benchmarking, Load Testing, and AI Patch Validation Platform",
+  "scripts": {
+    "start": "cd server && npm start",
+    "test": "cd server && npm test",
+    "demo": "cd server && npm run demo",
+    "eval": "node evaluation/runner.js",
+    "eval:dry": "node evaluation/runner.js --dry",
+    "client": "cd client && npm run dev",
+    "build": "cd client && npm run build"
+  }
+}
