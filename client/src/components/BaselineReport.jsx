@@ -24,7 +24,8 @@ import {
   Send,
   Users,
   Smile,
-  AlertCircle
+  AlertCircle,
+  Play
 } from 'lucide-react';
 import MetricsCharts from './MetricsCharts';
 

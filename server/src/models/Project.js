@@ -53,6 +53,20 @@ const ProjectSchema = new mongoose.Schema({
     ref: 'Run',
     default: null
   },
+  ownerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true
+  },
+  isPublic: {
+    type: Boolean,
+    default: false
+  },
+  isDemo: {
+    type: Boolean,
+    default: false
+  },
   meta: {
     dependencies: {
       type: Map,

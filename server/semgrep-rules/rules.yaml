@@ -1,0 +1,166 @@
+rules:
+  - id: n-plus-one-query
+    languages: [javascript, typescript]
+    message: "Detected database query or simulated query inside loop (N+1 query anti-pattern). Batch queries with $in or Promise.all instead."
+    severity: ERROR
+    metadata:
+      category: performance
+      strategy: batch
+      severity_score: 5
+    patterns:
+      - pattern-either:
+          - pattern: |
+              for (...) {
+                ...
+                await $DB.$FUNC(...);
+                ...
+              }
+          - pattern: |
+              for (const $X of $ARR) {
+                ...
+                await $DB.$FUNC(...);
+                ...
+              }
+          - pattern: |
+              $ARR.map(async ($ITEM) => {
+                ...
+                await $DB.$FUNC(...);
+                ...
+              })
+          - pattern: |
+              $ARR.forEach(async ($ITEM) => {
+                ...
+                await $DB.$FUNC(...);
+                ...
+              })
+          - pattern: |
+              for (const $X of $ARR) {
+                ...
+                await simulateDbQuery(...);
+                ...
+              }
+
+  - id: sync-calls-in-handlers
+    languages: [javascript, typescript]
+    message: "Synchronous blocking function call inside Express route handler blocks the single-threaded Node.js event loop."
+    severity: ERROR
+    metadata:
+      category: performance
+      strategy: async
+      severity_score: 5
+    patterns:
+      - pattern-either:
+          - pattern: crypto.pbkdf2Sync(...)
+          - pattern: bcrypt.hashSync(...)
+          - pattern: bcrypt.compareSync(...)
+          - pattern: fs.readFileSync(...)
+          - pattern: fs.writeFileSync(...)
+          - pattern: child_process.execSync(...)
+          - pattern: execSync(...)
+
+  - id: unhandled-promise-rejection
+    languages: [javascript, typescript]
+    message: "Asynchronous function or promise called without await or .catch(), risking unhandled promise rejection and dropped operations."
+    severity: WARNING
+    metadata:
+      category: reliability
+      strategy: async
+      severity_score: 4
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $FUNC(...).then(...)
+          - pattern: |
+              simulateDbQuery(...).then(...)
+          - pattern: |
+              $MODEL.save()
+          - pattern: |
+              $DB.insertOne(...)
+
+  - id: unbounded-cache
+    languages: [javascript, typescript]
+    message: "Module-level collection mutated in request handlers without bounded size or TTL eviction, leading to memory leaks."
+    severity: WARNING
+    metadata:
+      category: reliability
+      strategy: cache
+      severity_score: 4
+    patterns:
+      - pattern-either:
+          - pattern: |
+              const $CACHE = new Map();
+              ...
+              $CACHE.set($KEY, $VAL);
+          - pattern: |
+              const $CACHE = [];
+              ...
+              $CACHE.push($VAL);
+
+  - id: missing-pagination
+    languages: [javascript, typescript]
+    message: "Data retrieval returns unpaginated collection from request handler without limit or pagination boundaries."
+    severity: WARNING
+    metadata:
+      category: architecture
+      strategy: pagination
+      severity_score: 3
+    patterns:
+      - pattern-either:
+          - pattern: |
+              res.json({ ..., users: $MOCK, ... })
+          - pattern: |
+              $MODEL.find({})
+
+  - id: unindexed-filter
+    languages: [javascript, typescript]
+    message: "Full in-memory collection scan with regex filtering on unindexed category or property."
+    severity: WARNING
+    metadata:
+      category: performance
+      strategy: index
+      severity_score: 4
+    patterns:
+      - pattern: |
+          new RegExp($REGEX, ...)
+          ...
+          $ARR.filter(...)
+
+  - id: missing-timeouts
+    languages: [javascript, typescript]
+    message: "Outbound network request without an explicit timeout config can cause socket exhaustion during network degradation."
+    severity: WARNING
+    metadata:
+      category: reliability
+      strategy: pool
+      severity_score: 3
+    patterns:
+      - pattern-either:
+          - pattern: axios.get($URL)
+          - pattern: axios.post($URL, $DATA)
+          - pattern: fetch($URL)
+
+  - id: hardcoded-secrets
+    languages: [javascript, typescript]
+    message: "Hardcoded secret or credential detected in source code."
+    severity: ERROR
+    metadata:
+      category: security
+      strategy: none
+      severity_score: 5
+    patterns:
+      - pattern-either:
+          - pattern: jwt.sign($DATA, "...")
+          - pattern: const $KEY = "...";
+
+  - id: dangerous-eval
+    languages: [javascript, typescript]
+    message: "Use of eval() or new Function() allows arbitrary code execution."
+    severity: ERROR
+    metadata:
+      category: security
+      strategy: none
+      severity_score: 5
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: new Function(...)

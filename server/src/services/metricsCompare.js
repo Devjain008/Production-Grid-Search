@@ -1,6 +1,7 @@
 /**
  * Statistical Metrics Comparator & Significance Testing
- * Implements run-to-run variance analysis, Mann-Whitney U testing, and guarded metric regression detection.
+ * Implements run-to-run variance analysis, Mann-Whitney U testing, Cliff's delta effect size,
+ * and guarded metric regression detection.
  */
 
 /**
@@ -27,13 +28,30 @@ function calculateSummaryStats(values) {
 }
 
 /**
+ * Cliff's Delta Effect Size
+ * Non-parametric effect size measure between two distributions in range [-1, 1]
+ */
+function calculateCliffsDelta(sampleA, sampleB) {
+  const n1 = sampleA.length;
+  const n2 = sampleB.length;
+  if (n1 === 0 || n2 === 0) return 0.0;
+
+  let greater = 0;
+  let lesser = 0;
+
+  for (const x of sampleA) {
+    for (const y of sampleB) {
+      if (x > y) greater++;
+      else if (x < y) lesser++;
+    }
+  }
+
+  const delta = (greater - lesser) / (n1 * n2);
+  return parseFloat(delta.toFixed(4));
+}
+
+/**
  * Mann-Whitney U test (Wilcoxon rank-sum test)
- * Non-parametric statistical test to determine whether candidate distribution
- * is stochastically smaller (lower latency) than baseline distribution.
- * 
- * @param {Array<number>} sampleA - e.g. baseline p95 values
- * @param {Array<number>} sampleB - e.g. candidate p95 values
- * @returns {{ uStatistic: number, zScore: number, pValue: number, isSignificant: boolean }}
  */
 function mannWhitneyUTest(sampleA, sampleB) {
   const n1 = sampleA.length;
@@ -43,13 +61,11 @@ function mannWhitneyUTest(sampleA, sampleB) {
     return { uStatistic: 0, zScore: 0, pValue: 1, isSignificant: false };
   }
 
-  // Combine and rank all observations
   const combined = [
     ...sampleA.map(val => ({ val, group: 'A' })),
     ...sampleB.map(val => ({ val, group: 'B' }))
   ].sort((a, b) => a.val - b.val);
 
-  // Assign average ranks for ties
   let i = 0;
   const ranks = [];
   while (i < combined.length) {
@@ -64,7 +80,6 @@ function mannWhitneyUTest(sampleA, sampleB) {
     i = j + 1;
   }
 
-  // Sum of ranks for sample A
   let r1 = 0;
   for (let k = 0; k < combined.length; k++) {
     if (combined[k].group === 'A') {
@@ -72,19 +87,17 @@ function mannWhitneyUTest(sampleA, sampleB) {
     }
   }
 
-  // Calculate U1 and U2
   const u1 = r1 - (n1 * (n1 + 1)) / 2;
   const u2 = n1 * n2 - u1;
   const u = Math.min(u1, u2);
 
-  // Normal approximation for z-score (standard for n1, n2 >= 4)
   const meanU = (n1 * n2) / 2;
   const stdU = Math.sqrt((n1 * n2 * (n1 + n2 + 1)) / 12);
   const zScore = stdU > 0 ? (u - meanU) / stdU : 0;
 
-  // Approximate two-tailed p-value using complementary error function approximation
   const pValue = parseFloat((2 * (1 - normalCdf(Math.abs(zScore)))).toFixed(4));
-  const isSignificant = pValue < 0.05;
+  const alpha = parseFloat(process.env.ALPHA) || 0.05;
+  const isSignificant = pValue < alpha;
 
   return {
     uStatistic: u,
@@ -94,9 +107,6 @@ function mannWhitneyUTest(sampleA, sampleB) {
   };
 }
 
-/**
- * Standard Normal Cumulative Distribution Function (CDF) approximation
- */
 function normalCdf(z) {
   const p = 0.3275911;
   const a1 = 0.254829592;
@@ -113,9 +123,6 @@ function normalCdf(z) {
   return 0.5 * (1.0 + sign * erf);
 }
 
-/**
- * Compares two individual metric runs
- */
 function compareSingleMetrics(baseline, candidate) {
   const calcChange = (base, cand, lowerIsBetter = true) => {
     if (base === 0 && cand === 0) return { absolute: 0, percent: 0, improved: false };
@@ -146,68 +153,132 @@ function compareSingleMetrics(baseline, candidate) {
  * Validates candidate vs baseline with >= 5 runs and statistical significance checking
  */
 function evaluateCandidateRun(baselineRuns, candidateRuns, functionalTestsPassed = true) {
-  if (!functionalTestsPassed) {
-    return {
-      verdict: 'rejected',
-      reason: 'Functional unit/integration tests failed after patch application'
-    };
-  }
+  const alpha = parseFloat(process.env.ALPHA) || 0.05;
+  const minEffect = parseFloat(process.env.MIN_EFFECT) || 0.05;
+  const tolError = parseFloat(process.env.TOLERANCE_ERROR) || 0.01;
+  const tolMem = parseFloat(process.env.TOLERANCE_MEM) || 0.20;
 
   const baselineP95s = baselineRuns.map(r => r.metrics ? r.metrics.p95 : r.p95);
   const candidateP95s = candidateRuns.map(r => r.metrics ? r.metrics.p95 : r.p95);
 
+  const baselineRps = baselineRuns.map(r => r.metrics ? r.metrics.rps : r.rps || 0);
+  const candidateRps = candidateRuns.map(r => r.metrics ? r.metrics.rps : r.rps || 0);
+
+  const baselineErrorRates = baselineRuns.map(r => r.metrics ? r.metrics.errorRate : r.errorRate || 0);
+  const candidateErrorRates = candidateRuns.map(r => r.metrics ? r.metrics.errorRate : r.errorRate || 0);
+
+  const baselineMem = baselineRuns.map(r => r.metrics ? r.metrics.memoryMaxMb : r.memoryMaxMb || 0);
+  const candidateMem = candidateRuns.map(r => r.metrics ? r.metrics.memoryMaxMb : r.memoryMaxMb || 0);
+
   const baselineStats = calculateSummaryStats(baselineP95s);
   const candidateStats = calculateSummaryStats(candidateP95s);
 
-  const mwu = mannWhitneyUTest(baselineP95s, candidateP95s);
-
-  // Guarded metrics check: error rate must not regress
-  const baselineErrorRates = baselineRuns.map(r => r.metrics ? r.metrics.errorRate : r.errorRate || 0);
-  const candidateErrorRates = candidateRuns.map(r => r.metrics ? r.metrics.errorRate : r.errorRate || 0);
   const avgBaselineErr = baselineErrorRates.reduce((a, b) => a + b, 0) / (baselineErrorRates.length || 1);
   const avgCandidateErr = candidateErrorRates.reduce((a, b) => a + b, 0) / (candidateErrorRates.length || 1);
 
-  if (avgCandidateErr > avgBaselineErr + 0.02) {
-    return {
-      verdict: 'rejected',
-      reason: `Guarded metric errorRate regressed from ${(avgBaselineErr * 100).toFixed(1)}% to ${(avgCandidateErr * 100).toFixed(1)}%`,
-      baselineStats,
-      candidateStats,
-      mwu
-    };
-  }
-
-  // Guarded metrics check: memory must not inflate beyond 50%
-  const baselineMem = baselineRuns.map(r => r.metrics ? r.metrics.memoryMaxMb : r.memoryMaxMb || 0);
-  const candidateMem = candidateRuns.map(r => r.metrics ? r.metrics.memoryMaxMb : r.memoryMaxMb || 0);
   const avgBaseMem = baselineMem.reduce((a, b) => a + b, 0) / (baselineMem.length || 1);
   const avgCandMem = candidateMem.reduce((a, b) => a + b, 0) / (candidateMem.length || 1);
 
-  if (avgCandMem > avgBaseMem * 1.5 && avgBaseMem > 0) {
+  const avgBaseRps = baselineRps.reduce((a, b) => a + b, 0) / (baselineRps.length || 1);
+  const avgCandRps = candidateRps.reduce((a, b) => a + b, 0) / (candidateRps.length || 1);
+
+  const p95DeltaPct = baselineStats.mean > 0
+    ? parseFloat((((candidateStats.mean - baselineStats.mean) / baselineStats.mean) * 100).toFixed(2))
+    : 0;
+
+  const rpsDeltaPct = avgBaseRps > 0
+    ? parseFloat((((avgCandRps - avgBaseRps) / avgBaseRps) * 100).toFixed(2))
+    : 0;
+
+  const errorDelta = parseFloat((avgCandidateErr - avgBaselineErr).toFixed(4));
+  const memDeltaPct = avgBaseMem > 0
+    ? parseFloat((((avgCandMem - avgBaseMem) / avgBaseMem) * 100).toFixed(2))
+    : 0;
+
+  const mwu = mannWhitneyUTest(baselineP95s, candidateP95s);
+  // Cliff's delta: positive means baseline > candidate (candidate latency is lower/better)
+  const effectSize = calculateCliffsDelta(baselineP95s, candidateP95s);
+
+  const comparison = {
+    p95DeltaPct,
+    rpsDeltaPct,
+    errorDelta,
+    memDeltaPct,
+    mannWhitneyP: mwu.pValue,
+    effectSize,
+    nBaseline: baselineRuns.length,
+    nCandidate: candidateRuns.length
+  };
+
+  if (!functionalTestsPassed) {
     return {
       verdict: 'rejected',
-      reason: `Guarded metric memory inflated from ${avgBaseMem.toFixed(1)}MB to ${avgCandMem.toFixed(1)}MB`,
+      failureReason: {
+        code: 'tests_failed',
+        summary: 'Functional unit/integration tests failed after patch application'
+      },
+      comparison,
       baselineStats,
       candidateStats,
       mwu
     };
   }
 
-  // Latency check: candidate mean should be lower than baseline mean
-  const latencyImproved = candidateStats.mean < baselineStats.mean;
-
-  if (latencyImproved && mwu.isSignificant) {
+  // Guarded metrics check: error rate
+  if (errorDelta > tolError) {
     return {
-      verdict: 'accepted',
-      reason: `Significant p95 reduction from ${baselineStats.mean}ms to ${candidateStats.mean}ms (p=${mwu.pValue})`,
+      verdict: 'rejected',
+      failureReason: {
+        code: 'regression',
+        summary: `Guarded metric errorRate regressed by +${(errorDelta * 100).toFixed(1)}% (tolerance: ${(tolError * 100)}%)`
+      },
+      comparison,
       baselineStats,
       candidateStats,
       mwu
     };
-  } else if (latencyImproved && !mwu.isSignificant) {
+  }
+
+  // Guarded metrics check: memory
+  if (memDeltaPct > tolMem * 100 && avgBaseMem > 0) {
+    return {
+      verdict: 'rejected',
+      failureReason: {
+        code: 'regression',
+        summary: `Guarded metric memory inflated by +${memDeltaPct}% (tolerance: +${(tolMem * 100)}%)`
+      },
+      comparison,
+      baselineStats,
+      candidateStats,
+      mwu
+    };
+  }
+
+  // Latency improvement check: must be lower p95, p < ALPHA, and relative reduction > MIN_EFFECT
+  const relativeLatencyReduction = baselineStats.mean > 0
+    ? (baselineStats.mean - candidateStats.mean) / baselineStats.mean
+    : 0;
+
+  const isSignificant = mwu.pValue < alpha;
+  const meetsMinEffect = relativeLatencyReduction >= minEffect || effectSize >= 0.147;
+
+  if (relativeLatencyReduction > 0 && isSignificant && meetsMinEffect) {
+    return {
+      verdict: 'accepted',
+      failureReason: { code: 'none', summary: '' },
+      comparison,
+      baselineStats,
+      candidateStats,
+      mwu
+    };
+  } else if (relativeLatencyReduction > 0 && (!isSignificant || !meetsMinEffect)) {
     return {
       verdict: 'inconclusive',
-      reason: `Latency improved from ${baselineStats.mean}ms to ${candidateStats.mean}ms, but difference is within run-to-run noise (p=${mwu.pValue} >= 0.05)`,
+      failureReason: {
+        code: 'noise',
+        summary: `Latency reduction (${(relativeLatencyReduction * 100).toFixed(1)}%) is within run-to-run noise (p=${mwu.pValue} >= ${alpha} or effect < ${minEffect})`
+      },
+      comparison,
       baselineStats,
       candidateStats,
       mwu
@@ -215,7 +286,11 @@ function evaluateCandidateRun(baselineRuns, candidateRuns, functionalTestsPassed
   } else {
     return {
       verdict: 'rejected',
-      reason: `Candidate p95 latency (${candidateStats.mean}ms) was not better than baseline (${baselineStats.mean}ms)`,
+      failureReason: {
+        code: 'no_improvement',
+        summary: `Candidate p95 latency (${candidateStats.mean}ms) was not better than baseline (${baselineStats.mean}ms)`
+      },
+      comparison,
       baselineStats,
       candidateStats,
       mwu
@@ -225,6 +300,7 @@ function evaluateCandidateRun(baselineRuns, candidateRuns, functionalTestsPassed
 
 module.exports = {
   calculateSummaryStats,
+  calculateCliffsDelta,
   mannWhitneyUTest,
   compareSingleMetrics,
   evaluateCandidateRun

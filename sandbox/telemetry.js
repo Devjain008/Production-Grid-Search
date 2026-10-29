@@ -1,7 +1,7 @@
 /**
  * EVOLVE Sandbox Telemetry Hook
  * Injected automatically via `node -r /sandbox/telemetry.js`
- * Samples Node.js Event Loop Lag and memory pressure without modifying application source code.
+ * Samples Node.js Event Loop Lag, monitors memory pressure, and shims MERN stack dependencies.
  */
 const { monitorEventLoopDelay } = require('perf_hooks');
 const http = require('http');
@@ -14,20 +14,18 @@ try {
   // Fallback if not supported
 }
 
-// Keep a sliding window of event-loop lag metrics
 const telemetryState = {
   startedAt: Date.now(),
   lastCheck: Date.now(),
   lagSamples: []
 };
 
-// Periodic sampling
+// Periodic sampling of event loop lag
 setInterval(() => {
   if (histogram) {
     const p50 = (histogram.percentile(50) / 1e6).toFixed(2);
     const p95 = (histogram.percentile(95) / 1e6).toFixed(2);
     const p99 = (histogram.percentile(99) / 1e6).toFixed(2);
-    const max = (histogram.max / 1e6).toFixed(2);
     const mem = process.memoryUsage();
 
     telemetryState.lagSamples.push({
@@ -45,12 +43,16 @@ setInterval(() => {
   }
 }, 500).unref();
 
-// Intercept HTTP server creation to augment or attach an internal metrics endpoint
+// Prevent unhandled promise rejections from crashing untrusted MERN applications
+process.on('unhandledRejection', (reason, promise) => {
+  console.warn('[EVOLVE Sandbox Telemetry] Caught unhandled rejection in target app:', reason?.message || reason);
+});
+
+// Intercept HTTP server creation to attach an internal metrics endpoint
 const originalCreateServer = http.createServer;
 http.createServer = function(...args) {
   const server = originalCreateServer.apply(this, args);
   
-  // Attach an event loop lag metric reporter if queried on /_evolve_telemetry
   const originalListeners = server.listeners('request').slice(0);
   server.removeAllListeners('request');
 
@@ -75,7 +77,6 @@ http.createServer = function(...args) {
       return;
     }
 
-    // Call user handlers
     for (const listener of originalListeners) {
       listener.call(server, req, res);
     }

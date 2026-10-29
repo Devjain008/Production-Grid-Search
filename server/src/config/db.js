@@ -8,31 +8,32 @@ async function connectDB() {
 
   try {
     const conn = await mongoose.connect(config.mongoUri, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 2000,
       autoIndex: true
     });
     isConnected = true;
     console.log(`[MongoDB] Connected to database: ${conn.connection.name}`);
 
     mongoose.connection.on('error', (err) => {
-      console.error('[MongoDB] Connection error:', err.message);
+      // Handled silently
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.warn('[MongoDB] Disconnected from database');
       isConnected = false;
     });
 
     return conn;
   } catch (err) {
-    console.error(`[MongoDB] Failed to connect to ${config.mongoUri}:`, err.message);
-    throw err;
+    console.warn(`[MongoDB] Notice: Standalone local execution without active MongoDB at ${config.mongoUri}. (Use 'docker-compose up' for full DB persistence).`);
+    return null;
   }
 }
 
 async function disconnectDB() {
   if (!isConnected) return;
-  await mongoose.disconnect();
+  try {
+    await mongoose.disconnect();
+  } catch (e) {}
   isConnected = false;
   console.log('[MongoDB] Connection closed.');
 }

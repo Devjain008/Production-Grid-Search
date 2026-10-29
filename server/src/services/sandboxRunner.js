@@ -6,9 +6,6 @@ const tar = require('tar-stream');
 const { getDockerClient, isDockerAvailable } = require('../config/docker');
 const config = require('../config');
 
-/**
- * Packs a directory into a tar stream for dockerode container file copying
- */
 function packDirectoryToTar(dirPath) {
   const pack = tar.pack();
 
@@ -36,9 +33,6 @@ function packDirectoryToTar(dirPath) {
   return pack;
 }
 
-/**
- * Health check an HTTP endpoint until ready or timeout
- */
 async function pollHealthCheck(baseUrl, healthEndpoint = '/health', maxWaitMs = 15000, intervalMs = 500) {
   const startTime = Date.now();
   const targetUrl = new URL(healthEndpoint, baseUrl).toString();
@@ -66,9 +60,7 @@ async function pollHealthCheck(baseUrl, healthEndpoint = '/health', maxWaitMs = 
           statusCode: response.status
         };
       }
-    } catch (e) {
-      // Continue polling
-    }
+    } catch (e) {}
     await new Promise(r => setTimeout(r, intervalMs));
   }
 
@@ -80,9 +72,6 @@ async function pollHealthCheck(baseUrl, healthEndpoint = '/health', maxWaitMs = 
   };
 }
 
-/**
- * Core Sandbox Runner
- */
 class SandboxRunner {
   constructor(options = {}) {
     this.options = {
@@ -97,47 +86,40 @@ class SandboxRunner {
     this.activeChildProcesses = new Map();
   }
 
-  /**
-   * Generates secure container configuration
-   */
   getContainerConfig(port = 3000, hostPort = 0) {
     return {
       Image: this.options.image,
-      User: '1001:1001', // Strict unprivileged non-root execution
+      User: '1001:1001',
       ExposedPorts: {
         [`${port}/tcp`]: {}
       },
       HostConfig: {
         NanoCPUs: this.options.cpuLimitNano,
         Memory: this.options.memoryLimitMb * 1024 * 1024,
-        MemorySwap: this.options.memoryLimitMb * 1024 * 1024, // No swap to prevent bypass
+        MemorySwap: this.options.memoryLimitMb * 1024 * 1024,
         PidsLimit: this.options.pidsLimit,
         PortBindings: {
           [`${port}/tcp`]: [{ HostPort: hostPort.toString() }]
         },
-        // Read-only filesystem where possible with unprivileged tmpfs mount
-        ReadonlyRootfs: false, // Set to true if app does not write to app directory
+        ReadonlyRootfs: false,
         Tmpfs: {
           '/tmp': 'rw,noexec,nosuid,size=64m'
         },
-        // Isolated network: Disable external internet egress
         NetworkMode: 'bridge'
       },
       Env: [
         'NODE_ENV=production',
         `PORT=${port}`,
-        'EVOLVE_SANDBOX=true'
+        'EVOLVE_SANDBOX=true',
+        'MONGO_URI=mongodb://127.0.0.1:27017/sandbox',
+        'MONGODB_URI=mongodb://127.0.0.1:27017/sandbox',
+        'DATABASE_URL=mongodb://127.0.0.1:27017/sandbox',
+        'JWT_SECRET=evolve_sandbox_jwt_secret',
+        'SESSION_SECRET=evolve_sandbox_session_secret'
       ]
     };
   }
 
-  /**
-   * Start project inside a secure sandbox container or child process sandbox
-   * 
-   * @param {string} projectDir 
-   * @param {string} runId 
-   * @param {string} entryPoint
-   */
   async startSandbox(projectDir, runId, entryPoint = 'server.js') {
     const hasDocker = await isDockerAvailable();
 
@@ -149,9 +131,6 @@ class SandboxRunner {
     }
   }
 
-  /**
-   * Docker-backed container runner
-   */
   async _startDockerSandbox(projectDir, runId, entryPoint) {
     const docker = getDockerClient();
     const targetPort = 3000;
@@ -171,16 +150,11 @@ class SandboxRunner {
     const baseUrl = `http://127.0.0.1:${hostPort}`;
 
     const runtimeLogs = [];
-    const logStream = await container.logs({
-      follow: true,
-      stdout: true,
-      stderr: true
-    });
+    const logStream = await container.logs({ follow: true, stdout: true, stderr: true });
     logStream.on('data', chunk => runtimeLogs.push(chunk.toString('utf8')));
 
-    // Set watchdog timer
     const watchdog = setTimeout(async () => {
-      console.warn(`[SandboxRunner] Container for run ${runId} exceeded timeout (${this.options.timeoutMs}ms). Terminating.`);
+      console.warn(`[SandboxRunner] Container for run ${runId} exceeded timeout. Terminating.`);
       await this.stopSandbox(runId);
     }, this.options.timeoutMs);
 
@@ -192,10 +166,8 @@ class SandboxRunner {
       baseUrl
     });
 
-    // Healthcheck
     const health = await pollHealthCheck(baseUrl, '/health', 15000);
     if (!health.healthy) {
-      // Fallback check root endpoint
       const rootCheck = await pollHealthCheck(baseUrl, '/', 3000);
       if (rootCheck.healthy) {
         health.healthy = true;
@@ -214,9 +186,6 @@ class SandboxRunner {
     };
   }
 
-  /**
-   * Secured Process Sandbox (runs when Docker daemon is not active on host)
-   */
   async _startLocalSandbox(projectDir, runId, entryPoint) {
     const targetPort = 3100 + (Math.floor(Math.random() * 2000));
     const baseUrl = `http://127.0.0.1:${targetPort}`;
@@ -227,7 +196,6 @@ class SandboxRunner {
       throw new Error(`Entry point file ${entryPoint} not found in ${projectDir}`);
     }
 
-    // Telemetry injection path
     const telemetryPath = path.resolve(__dirname, '../../sandbox/telemetry.js');
     const nodeArgs = [];
     if (fs.existsSync(telemetryPath)) {
@@ -235,13 +203,31 @@ class SandboxRunner {
     }
     nodeArgs.push(serverFile);
 
+    // Module resolution fallback for unzipped MERN archives in local process mode
+    const fallbackModuleDirs = [
+      path.join(projectDir, 'node_modules'),
+      path.resolve(__dirname, '../../../samples/buggy-express-app/node_modules'),
+      path.resolve(__dirname, '../../node_modules')
+    ].filter(fs.existsSync);
+
+    const nodePathEnv = [
+      fallbackModuleDirs.join(path.delimiter),
+      process.env.NODE_PATH || ''
+    ].filter(Boolean).join(path.delimiter);
+
     const child = spawn(process.execPath, nodeArgs, {
       cwd: projectDir,
       env: {
         ...process.env,
         NODE_ENV: 'production',
         PORT: targetPort.toString(),
-        EVOLVE_SANDBOX: 'true'
+        NODE_PATH: nodePathEnv,
+        EVOLVE_SANDBOX: 'true',
+        MONGO_URI: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/sandbox',
+        MONGODB_URI: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/sandbox',
+        DATABASE_URL: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/sandbox',
+        JWT_SECRET: 'evolve_sandbox_jwt_secret',
+        SESSION_SECRET: 'evolve_sandbox_session_secret'
       },
       stdio: ['ignore', 'pipe', 'pipe']
     });
@@ -282,9 +268,6 @@ class SandboxRunner {
     };
   }
 
-  /**
-   * Collect CPU and Memory resource statistics
-   */
   async getResourceUsage(runId) {
     if (this.activeContainers.has(runId)) {
       const { container } = this.activeContainers.get(runId);
@@ -305,38 +288,49 @@ class SandboxRunner {
     }
 
     if (this.activeChildProcesses.has(runId)) {
-      // Basic process memory usage inspection
-      return {
-        cpuPercent: 12.5,
-        memoryMb: 85.0
-      };
+      return { cpuPercent: 12.5, memoryMb: 85.0 };
     }
 
     return { cpuPercent: 0, memoryMb: 0 };
   }
 
-  /**
-   * Stop and cleanup sandbox
-   */
+  isSandboxActive(runId) {
+    return this.activeContainers.has(runId) || this.activeChildProcesses.has(runId);
+  }
+
+  getSandboxPort(runId) {
+    if (this.activeContainers.has(runId)) {
+      return this.activeContainers.get(runId).port;
+    }
+    if (this.activeChildProcesses.has(runId)) {
+      return this.activeChildProcesses.get(runId).port;
+    }
+    return null;
+  }
+
+  getSandboxBaseUrl(runId) {
+    if (this.activeContainers.has(runId)) {
+      return this.activeContainers.get(runId).baseUrl;
+    }
+    if (this.activeChildProcesses.has(runId)) {
+      return this.activeChildProcesses.get(runId).baseUrl;
+    }
+    return null;
+  }
+
   async stopSandbox(runId) {
     if (this.activeContainers.has(runId)) {
       const { container, watchdog } = this.activeContainers.get(runId);
       clearTimeout(watchdog);
-      try {
-        await container.stop({ t: 2 });
-      } catch (e) {}
-      try {
-        await container.remove({ force: true });
-      } catch (e) {}
+      try { await container.stop({ t: 2 }); } catch (e) {}
+      try { await container.remove({ force: true }); } catch (e) {}
       this.activeContainers.delete(runId);
     }
 
     if (this.activeChildProcesses.has(runId)) {
       const { process: child, watchdog } = this.activeChildProcesses.get(runId);
       clearTimeout(watchdog);
-      try {
-        child.kill('SIGKILL');
-      } catch (e) {}
+      try { child.kill('SIGKILL'); } catch (e) {}
       this.activeChildProcesses.delete(runId);
     }
   }

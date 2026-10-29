@@ -1,0 +1,82 @@
+[
+  {
+    "description": "Successful latency reduction with no regression",
+    "inputs": {
+      "baselineLatency": 100.0,
+      "candidateLatency": 50.0,
+      "baselineError": 0.0,
+      "candidateError": 0.0,
+      "baselineMemory": 100.0,
+      "candidateMemory": 100.0,
+      "testsPassed": true,
+      "verdict": "accepted"
+    },
+    "weights": { "w1": 0.5, "w2": 0.3, "w3": 0.1, "w4": 0.5 },
+    "expectedReward": 0.25,
+    "expectedExclude": false
+  },
+  {
+    "description": "Functional tests failed penalty",
+    "inputs": {
+      "baselineLatency": 100.0,
+      "candidateLatency": 40.0,
+      "baselineError": 0.0,
+      "candidateError": 0.0,
+      "baselineMemory": 100.0,
+      "candidateMemory": 100.0,
+      "testsPassed": false,
+      "verdict": "rejected"
+    },
+    "weights": { "w1": 0.5, "w2": 0.3, "w3": 0.1, "w4": 0.5 },
+    "expectedReward": -0.20,
+    "expectedExclude": false
+  },
+  {
+    "description": "Error rate and memory regression penalties",
+    "inputs": {
+      "baselineLatency": 200.0,
+      "candidateLatency": 180.0,
+      "baselineError": 0.01,
+      "candidateError": 0.11,
+      "baselineMemory": 100.0,
+      "candidateMemory": 150.0,
+      "testsPassed": true,
+      "verdict": "rejected"
+    },
+    "weights": { "w1": 0.5, "w2": 0.3, "w3": 0.1, "w4": 0.5 },
+    "expectedReward": -0.03,
+    "expectedExclude": false
+  },
+  {
+    "description": "Inconclusive verdict forces zero reward and exclusion",
+    "inputs": {
+      "baselineLatency": 100.0,
+      "candidateLatency": 98.0,
+      "baselineError": 0.0,
+      "candidateError": 0.0,
+      "baselineMemory": 100.0,
+      "candidateMemory": 100.0,
+      "testsPassed": true,
+      "verdict": "inconclusive"
+    },
+    "weights": { "w1": 0.5, "w2": 0.3, "w3": 0.1, "w4": 0.5 },
+    "expectedReward": 0.0,
+    "expectedExclude": true
+  },
+  {
+    "description": "Massive regression clipped to minimum -1.0",
+    "inputs": {
+      "baselineLatency": 50.0,
+      "candidateLatency": 300.0,
+      "baselineError": 0.0,
+      "candidateError": 0.8,
+      "baselineMemory": 50.0,
+      "candidateMemory": 300.0,
+      "testsPassed": false,
+      "verdict": "rejected"
+    },
+    "weights": { "w1": 0.5, "w2": 0.3, "w3": 0.1, "w4": 0.5 },
+    "expectedReward": -1.0,
+    "expectedExclude": false
+  }
+]

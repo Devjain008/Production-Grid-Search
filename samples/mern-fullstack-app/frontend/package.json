@@ -1,0 +1,10 @@
+{
+  "name": "mern-frontend-client",
+  "version": "1.0.0",
+  "description": "React frontend for MERN fullstack application",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

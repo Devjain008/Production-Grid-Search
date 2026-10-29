@@ -1,0 +1,62 @@
+[
+  {
+    "id": "defect-n-plus-one",
+    "name": "N+1 Query in Order Retrieval",
+    "file": "server.js",
+    "function": "getOrdersHandler",
+    "category": "performance",
+    "line": 120,
+    "strategy": "batch",
+    "description": "Iterating over each order and performing separate async DB lookups for user and item details without batching"
+  },
+  {
+    "id": "defect-sync-bcrypt",
+    "name": "Synchronous Cryptographic Hash in Login Handler",
+    "file": "server.js",
+    "function": "loginHandler",
+    "category": "performance",
+    "line": 155,
+    "strategy": "async",
+    "description": "Using blocking crypto.pbkdf2Sync or bcrypt.hashSync inside high-concurrency authentication route"
+  },
+  {
+    "id": "defect-unindexed-filter",
+    "name": "Unindexed Category Filter Scan",
+    "file": "server.js",
+    "function": "getProductsHandler",
+    "category": "performance",
+    "line": 85,
+    "strategy": "index",
+    "description": "Linear table/collection scan filtering by category attribute without database index"
+  },
+  {
+    "id": "defect-unbounded-cache",
+    "name": "Unbounded Module-Level Search Cache (Memory Leak)",
+    "file": "server.js",
+    "function": "searchHandler",
+    "category": "reliability",
+    "line": 105,
+    "strategy": "cache",
+    "description": "Storing search query results in a global array or Map with no TTL, LRU eviction, or size bounds"
+  },
+  {
+    "id": "defect-missing-await",
+    "name": "Missing Await on Asynchronous Review Write",
+    "file": "server.js",
+    "function": "createReviewHandler",
+    "category": "reliability",
+    "line": 175,
+    "strategy": "async",
+    "description": "Calling asynchronous db.reviews.insertOne() without await, causing unhandled promise rejections and silent write drops"
+  },
+  {
+    "id": "defect-no-pagination",
+    "name": "Missing Pagination on User Listing",
+    "file": "server.js",
+    "function": "getUsersHandler",
+    "category": "architecture",
+    "line": 65,
+    "strategy": "pagination",
+    "description": "Returning entire dataset from find() with no limit, skip, or pagination controls"
+  }
+]

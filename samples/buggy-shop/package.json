@@ -1,0 +1,14 @@
+{
+  "name": "buggy-shop",
+  "version": "1.0.0",
+  "description": "Sample Express e-commerce application injected with realistic performance and reliability defects",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/app.test.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+  }
+}

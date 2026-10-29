@@ -1,0 +1,11 @@
+{
+  "name": "mern-fullstack-monorepo",
+  "version": "1.0.0",
+  "description": "Production MERN stack monorepo sample with split frontend and backend folders",
+  "private": true,
+  "scripts": {
+    "start": "node backend/server.js",
+    "server": "node backend/server.js",
+    "client": "npm start --prefix frontend"
+  }
+}
