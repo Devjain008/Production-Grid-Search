@@ -1,0 +1,33 @@
+{
+  "name": "evolve-server",
+  "version": "1.0.0",
+  "description": "EVOLVE backend orchestrator: sandboxed benchmarking, load testing, and AI feedback loop",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "jest --runInBand --detectOpenHandles"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.24.4",
+    "@babel/traverse": "^7.24.1",
+    "adm-zip": "^0.5.12",
+    "autocannon": "^7.15.0",
+    "axios": "^1.6.8",
+    "bullmq": "^5.7.9",
+    "cors": "^2.8.5",
+    "dockerode": "^4.0.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ioredis": "^5.4.1",
+    "mongoose": "^8.3.2",
+    "multer": "^1.4.5-lts.1",
+    "simple-git": "^3.24.0",
+    "tar-stream": "^3.1.7",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  }
+}

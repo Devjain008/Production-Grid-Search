@@ -1,0 +1,32 @@
+# EVOLVE Sandboxed Execution Environment
+# Security principles: Non-root user, immutable base, stripped network utilities, resource bounded
+
+FROM node:20-alpine AS base
+
+# Install dumb-init to prevent zombie processes and handle PID 1 signals cleanly
+RUN apk add --no-cache dumb-init
+
+# Create unprivileged sandbox user and group (UID/GID 1001)
+RUN addgroup -g 1001 sandboxgroup && \
+    adduser -u 1001 -G sandboxgroup -s /bin/sh -D sandboxuser
+
+# Pre-create app directory and grant unprivileged ownership
+WORKDIR /app
+RUN chown -R sandboxuser:sandboxgroup /app
+
+# Switch to unprivileged user
+USER 1001:1001
+
+# Copy telemetry sidecar
+COPY --chown=sandboxuser:sandboxgroup telemetry.js /sandbox/telemetry.js
+
+# Expose standard application port
+EXPOSE 3000
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV EVOLVE_SANDBOX=true
+
+# Entrypoint wraps with dumb-init and optionally injects telemetry
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["node", "-r", "/sandbox/telemetry.js", "server.js"]

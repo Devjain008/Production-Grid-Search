@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: evolve-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - evolve-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: evolve-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - evolve-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  evolve-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: evolve-server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongo:27017/evolve
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DOCKER_SOCKET_PATH=/var/run/docker.sock
+      - UPLOAD_DIR=/app/uploads
+      - MAX_UPLOAD_SIZE_MB=50
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - server-uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - evolve-net
+
+  evolve-client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: evolve-client
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - evolve-server
+    networks:
+      - evolve-net
+
+networks:
+  evolve-net:
+    driver: bridge
+
+volumes:
+  mongo-data:
+  redis-data:
+  server-uploads:
