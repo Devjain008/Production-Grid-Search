@@ -1,0 +1,18 @@
+[
+  {
+    "id": "defect-sync-fs-notify",
+    "file": "server.js",
+    "function": "sendNotificationHandler",
+    "category": "performance",
+    "expectedStrategy": "async",
+    "description": "Synchronous disk write fs.writeFileSync inside request notification handler"
+  },
+  {
+    "id": "defect-unbounded-promise-all",
+    "file": "server.js",
+    "function": "broadcastHandler",
+    "category": "performance",
+    "expectedStrategy": "batch",
+    "description": "Unbounded Promise.all dispatching 1000 simultaneous network operations without batching"
+  }
+]

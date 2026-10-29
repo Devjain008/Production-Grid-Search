@@ -1,0 +1,18 @@
+[
+  {
+    "id": "defect-n-plus-one-stock",
+    "file": "server.js",
+    "function": "checkStockBatch",
+    "category": "performance",
+    "expectedStrategy": "batch",
+    "description": "Sequential loop over item IDs with single database lookups per iteration"
+  },
+  {
+    "id": "defect-sync-audit-log",
+    "file": "server.js",
+    "function": "auditStockUpdate",
+    "category": "performance",
+    "expectedStrategy": "async",
+    "description": "Synchronous file append on every inventory decrement"
+  }
+]

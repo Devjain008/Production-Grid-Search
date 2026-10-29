@@ -1,0 +1,18 @@
+[
+  {
+    "id": "defect-sync-hmac-payment",
+    "file": "server.js",
+    "function": "signPayloadHandler",
+    "category": "performance",
+    "expectedStrategy": "async",
+    "description": "Repetitive synchronous cryptographic HMAC hashing on payment webhooks"
+  },
+  {
+    "id": "defect-unindexed-ledger-query",
+    "file": "server.js",
+    "function": "findTransactionsHandler",
+    "category": "performance",
+    "expectedStrategy": "index",
+    "description": "Full array traversal searching for transactions by customerId without lookup index"
+  }
+]

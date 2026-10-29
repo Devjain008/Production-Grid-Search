@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="300" style="background:#0f172a; border-radius:8px;">
+    <text x="20" y="30" font-family="sans-serif" font-size="16" font-weight="bold" fill="#f8fafc">False-Accept Rate on Held-Out Workload (%) [MOCK]</text>
+    <text x="20" y="50" font-family="sans-serif" font-size="11" fill="#94a3b8">Lower is better &bull; B1 (Unit Tests Only) exposes critical regressions</text>
+    <line x1="40" y1="240" x2="560" y2="240" stroke="#334155" stroke-width="2" />
+    
+      <rect x="60" y="86" width="70" height="154" fill="#ef4444" rx="4" />
+      <text x="95" y="78" font-family="sans-serif" font-size="12" font-weight="bold" fill="#fff" text-anchor="middle">38.5%</text>
+      <text x="95" y="260" font-family="sans-serif" font-size="12" fill="#cbd5e1" text-anchor="middle">B1</text>
+    
+      <rect x="165" y="226" width="70" height="14" fill="#10b981" rx="4" />
+      <text x="200" y="218" font-family="sans-serif" font-size="12" font-weight="bold" fill="#fff" text-anchor="middle">3.5%</text>
+      <text x="200" y="260" font-family="sans-serif" font-size="12" fill="#cbd5e1" text-anchor="middle">B2</text>
+    
+      <rect x="270" y="222" width="70" height="18" fill="#10b981" rx="4" />
+      <text x="305" y="214" font-family="sans-serif" font-size="12" font-weight="bold" fill="#fff" text-anchor="middle">4.5%</text>
+      <text x="305" y="260" font-family="sans-serif" font-size="12" fill="#cbd5e1" text-anchor="middle">B3</text>
+    
+      <rect x="375" y="230" width="70" height="10" fill="#10b981" rx="4" />
+      <text x="410" y="222" font-family="sans-serif" font-size="12" font-weight="bold" fill="#fff" text-anchor="middle">2.5%</text>
+      <text x="410" y="260" font-family="sans-serif" font-size="12" fill="#cbd5e1" text-anchor="middle">FULL</text>
+    
+      <rect x="480" y="232" width="70" height="8" fill="#10b981" rx="4" />
+      <text x="515" y="224" font-family="sans-serif" font-size="12" font-weight="bold" fill="#fff" text-anchor="middle">2%</text>
+      <text x="515" y="260" font-family="sans-serif" font-size="12" fill="#cbd5e1" text-anchor="middle">FULL+L</text>
+    
+  </svg>

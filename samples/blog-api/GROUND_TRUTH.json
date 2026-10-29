@@ -1,0 +1,18 @@
+[
+  {
+    "id": "defect-n-plus-one-comments",
+    "file": "server.js",
+    "function": "getPostWithComments",
+    "category": "performance",
+    "expectedStrategy": "batch",
+    "description": "N+1 query loading comments for posts inside forEach loop"
+  },
+  {
+    "id": "defect-blocking-json-parse",
+    "file": "server.js",
+    "function": "importPostsHandler",
+    "category": "performance",
+    "expectedStrategy": "async",
+    "description": "Synchronous JSON.parse on 10MB payload blocking Node event loop"
+  }
+]

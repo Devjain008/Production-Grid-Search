@@ -1,0 +1,18 @@
+[
+  {
+    "id": "defect-unindexed-email-lookup",
+    "file": "server.js",
+    "function": "findUserByEmail",
+    "category": "performance",
+    "expectedStrategy": "index",
+    "description": "Scanning user list by email without index"
+  },
+  {
+    "id": "defect-missing-pagination-activity",
+    "file": "server.js",
+    "function": "getUserActivityHandler",
+    "category": "architecture",
+    "expectedStrategy": "pagination",
+    "description": "Returning unbounded activity log without limit"
+  }
+]

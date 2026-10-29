@@ -1,0 +1,18 @@
+[
+  {
+    "id": "defect-unbounded-chat-history",
+    "file": "server.js",
+    "function": "postMessageHandler",
+    "category": "reliability",
+    "expectedStrategy": "pool",
+    "description": "Growing in-memory message array without bound or eviction"
+  },
+  {
+    "id": "defect-missing-pagination-messages",
+    "file": "server.js",
+    "function": "getMessagesHandler",
+    "category": "architecture",
+    "expectedStrategy": "pagination",
+    "description": "Returning entire unbounded room chat history in single response"
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "defect-sync-crypto-auth",
+    "file": "server.js",
+    "function": "loginHandler",
+    "category": "performance",
+    "expectedStrategy": "async",
+    "description": "Synchronous pbkdf2Sync inside high concurrency login endpoint"
+  },
+  {
+    "id": "defect-no-connection-pooling",
+    "file": "server.js",
+    "function": "getUserSession",
+    "category": "performance",
+    "expectedStrategy": "pool",
+    "description": "Creating new database connection per HTTP request instead of reusing connection pool"
+  }
+]

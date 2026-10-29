@@ -1,0 +1,10 @@
+[
+  {
+    "id": "uncontrolled-case-01",
+    "file": "server.js",
+    "function": "handler",
+    "isUncontrolled": true,
+    "label": "UNCONTROLLED CASE: Real Open-Source Express Microservice",
+    "description": "Natural real-world express router with external dependencies and asynchronous middleware"
+  }
+]

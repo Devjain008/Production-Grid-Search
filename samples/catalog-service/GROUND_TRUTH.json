@@ -1,0 +1,18 @@
+[
+  {
+    "id": "defect-missing-pagination-catalog",
+    "file": "server.js",
+    "function": "listProductsHandler",
+    "category": "architecture",
+    "expectedStrategy": "pagination",
+    "description": "Returning 10,000 product objects without limit or cursor pagination"
+  },
+  {
+    "id": "defect-uncompressed-payload",
+    "file": "server.js",
+    "function": "getFullCatalogHandler",
+    "category": "performance",
+    "expectedStrategy": "compression",
+    "description": "Serving 500KB JSON payload without gzip or brotli compression"
+  }
+]

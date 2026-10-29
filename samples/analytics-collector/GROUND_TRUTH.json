@@ -1,0 +1,18 @@
+[
+  {
+    "id": "defect-unbounded-analytics-map",
+    "file": "server.js",
+    "function": "trackEventHandler",
+    "category": "reliability",
+    "expectedStrategy": "pool",
+    "description": "Unbounded module-level event map leaking heap memory on high ingestion"
+  },
+  {
+    "id": "defect-unindexed-timestamp-scan",
+    "file": "server.js",
+    "function": "queryMetricsHandler",
+    "category": "performance",
+    "expectedStrategy": "index",
+    "description": "Full collection scan filtering events by timestamp range without index"
+  }
+]
