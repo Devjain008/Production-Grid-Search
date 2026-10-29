@@ -7,7 +7,6 @@ const config = require('../config');
 
 const router = express.Router();
 
-// Ensure uploads dir exists
 const tempUploadDir = path.join(config.uploadDir, 'temp');
 fs.mkdirSync(tempUploadDir, { recursive: true });
 
@@ -37,10 +36,12 @@ router.get('/health', (req, res) => {
 });
 
 router.post('/projects', upload.single('projectZip'), projectController.createProject);
+router.post('/projects/demo', projectController.createDemoProject);
 router.get('/projects', projectController.listProjects);
 router.get('/projects/:id', projectController.getProject);
 router.get('/projects/:id/runs', projectController.getProjectRuns);
 router.post('/projects/:id/baseline', projectController.triggerBaseline);
 router.get('/runs/:id', projectController.getRun);
+router.post('/runs/:id/virtual-request', projectController.sendVirtualRequest);
 
 module.exports = router;

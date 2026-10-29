@@ -11,6 +11,30 @@ const RouteMetricSchema = new mongoose.Schema({
   totalHits: Number
 }, { _id: false });
 
+const NFRItemSchema = new mongoose.Schema({
+  metric: String,
+  target: String,
+  actual: String,
+  status: {
+    type: String,
+    enum: ['PASS', 'WARN', 'FAIL'],
+    default: 'PASS'
+  },
+  assessment: String
+}, { _id: false });
+
+const CapacityReportSchema = new mongoose.Schema({
+  maxPeakRps: { type: Number, default: 0 },
+  mediumSteadyRps: { type: Number, default: 0 },
+  breakingPointVus: { type: Number, default: 0 },
+  safeConcurrencyLimit: { type: Number, default: 0 },
+  trafficClassification: {
+    type: String,
+    enum: ['High Throughput', 'Medium Load', 'Low Throughput', 'Bottlenecked'],
+    default: 'Medium Load'
+  }
+}, { _id: false });
+
 const RunSchema = new mongoose.Schema({
   projectId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -24,6 +48,11 @@ const RunSchema = new mongoose.Schema({
     default: 'baseline',
     index: true
   },
+  executionMode: {
+    type: String,
+    enum: ['sandboxed_container', 'direct_live_deployment'],
+    default: 'sandboxed_container'
+  },
   status: {
     type: String,
     enum: ['queued', 'building', 'running', 'loadtesting', 'completed', 'failed'],
@@ -32,7 +61,7 @@ const RunSchema = new mongoose.Schema({
   },
   profile: {
     type: String,
-    enum: ['load', 'stress', 'spike', 'soak'],
+    enum: ['load', 'stress', 'spike', 'soak', 'test'],
     default: 'load'
   },
   containerInfo: {
@@ -70,6 +99,15 @@ const RunSchema = new mongoose.Schema({
       memory: Number
     }],
     routeMetrics: [RouteMetricSchema]
+  },
+  capacity: {
+    type: CapacityReportSchema,
+    default: () => ({})
+  },
+  nfrScorecard: {
+    overallScore: { type: Number, default: 0 },
+    verdict: { type: String, enum: ['COMPLIANT', 'NEEDS_OPTIMIZATION', 'NON_COMPLIANT'], default: 'NEEDS_OPTIMIZATION' },
+    items: [NFRItemSchema]
   },
   rawMetrics: {
     type: mongoose.Schema.Types.Mixed,

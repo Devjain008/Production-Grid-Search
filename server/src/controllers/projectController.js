@@ -2,12 +2,89 @@ const path = require('path');
 const fs = require('fs');
 const AdmZip = require('adm-zip');
 const simpleGit = require('simple-git');
+const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const Project = require('../models/Project');
 const Run = require('../models/Run');
 const { detectProjectRoutes } = require('../services/routeDetector');
 const { enqueueSandboxJob } = require('../queues/queueManager');
+const { SandboxRunner } = require('../services/sandboxRunner');
 const config = require('../config');
+
+const virtualRunner = new SandboxRunner();
+
+/**
+ * Copy directory recursively skipping node_modules
+ */
+function copyDirSync(src, dest) {
+  fs.mkdirSync(dest, { recursive: true });
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+    if (entry.isDirectory()) {
+      copyDirSync(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+/**
+ * Smart Monorepo & Multi-Folder Resolution
+ * If the repository contains multiple folders (e.g. frontend/ and backend/, or server/ and client/),
+ * locate the folder containing package.json with Express dependencies.
+ */
+function findExpressServiceDir(rootDir) {
+  const rootPkgPath = path.join(rootDir, 'package.json');
+  if (fs.existsSync(rootPkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf8'));
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      if (deps['express']) {
+        return rootDir;
+      }
+    } catch (e) {}
+  }
+
+  const candidateDirs = [];
+
+  function search(currentDir, depth) {
+    if (depth > 3) return;
+    try {
+      const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+          const subPath = path.join(currentDir, entry.name);
+          const pkgFile = path.join(subPath, 'package.json');
+          if (fs.existsSync(pkgFile)) {
+            try {
+              const pkg = JSON.parse(fs.readFileSync(pkgFile, 'utf8'));
+              const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+              const isExpress = !!deps['express'];
+              const score = (isExpress ? 15 : 0) + 
+                (['backend', 'server', 'api', 'app', 'service'].includes(entry.name.toLowerCase()) ? 8 : 0);
+              candidateDirs.push({ dir: subPath, score, isExpress, name: entry.name });
+            } catch (e) {}
+          }
+          search(subPath, depth + 1);
+        }
+      }
+    } catch (err) {}
+  }
+
+  search(rootDir, 1);
+
+  if (candidateDirs.length > 0) {
+    candidateDirs.sort((a, b) => b.score - a.score);
+    console.log(`[ProjectController] Smart folder detection resolved Express service directory: ${candidateDirs[0].dir} (Folder: ${candidateDirs[0].name})`);
+    return candidateDirs[0].dir;
+  }
+
+  return rootDir;
+}
 
 /**
  * Find entrypoint file in project
@@ -34,17 +111,110 @@ function findEntryPoint(projectDir) {
 }
 
 /**
+ * Probe live URL for OpenAPI/Swagger specs or health endpoints
+ */
+async function probeLiveEndpoints(liveUrl) {
+  const discovered = [];
+  const specPaths = ['/openapi.json', '/swagger.json', '/api-docs.json'];
+
+  for (const p of specPaths) {
+    try {
+      const target = new URL(p, liveUrl).toString();
+      const res = await axios.get(target, { timeout: 2500 });
+      if (res.data && res.data.paths) {
+        for (const [routePath, methods] of Object.entries(res.data.paths)) {
+          for (const method of Object.keys(methods)) {
+            discovered.push({
+              method: method.toUpperCase(),
+              path: routePath,
+              params: [],
+              filePath: 'openapi-spec',
+              line: 1
+            });
+          }
+        }
+        if (discovered.length > 0) return discovered;
+      }
+    } catch (e) {}
+  }
+
+  return [
+    { method: 'GET', path: '/health', params: [], filePath: 'live-probe', line: 1 },
+    { method: 'GET', path: '/', params: [], filePath: 'live-probe', line: 1 }
+  ];
+}
+
+/**
  * POST /api/projects
- * Accepts multipart zip or JSON body { repoUrl, name }
  */
 async function createProject(req, res) {
   try {
     let projectName = req.body.name;
     const repoUrl = req.body.repoUrl;
+    const liveUrl = req.body.liveUrl?.trim();
     const uploadedFile = req.file;
 
+    // CASE 1: Live Deployed Application Link
+    if (liveUrl) {
+      try {
+        new URL(liveUrl);
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid live deployed URL provided. Must include http:// or https://' });
+      }
+
+      if (!projectName) {
+        projectName = `LiveApp-${new URL(liveUrl).hostname}`;
+      }
+
+      const detectedRoutes = await probeLiveEndpoints(liveUrl);
+
+      const project = new Project({
+        name: projectName,
+        sourceType: 'live_url',
+        liveUrl,
+        sourcePath: null,
+        status: 'analyzing',
+        detectedRoutes,
+        meta: {
+          executionMode: 'direct_live_deployment',
+          fileCount: detectedRoutes.length
+        }
+      });
+      await project.save();
+
+      const profile = req.body.profile || 'load';
+      const baselineRun = new Run({
+        projectId: project._id,
+        type: 'baseline',
+        executionMode: 'direct_live_deployment',
+        status: 'queued',
+        profile
+      });
+      await baselineRun.save();
+
+      project.baselineRunId = baselineRun._id;
+      await project.save();
+
+      await enqueueSandboxJob({
+        runId: baselineRun._id.toString(),
+        projectId: project._id.toString(),
+        profile,
+        executionMode: 'direct_live_deployment',
+        liveUrl
+      });
+
+      return res.status(201).json({
+        success: true,
+        project,
+        baselineRun
+      });
+    }
+
+    // CASE 2: Codebase Mode (Zip or Git Repo Link)
     if (!uploadedFile && !repoUrl) {
-      return res.status(400).json({ error: 'Please provide either a project zip file or a GitHub repoUrl.' });
+      return res.status(400).json({
+        error: 'Please provide either a project zip file, a GitHub repoUrl, or a live deployed URL.'
+      });
     }
 
     const projectIdStr = uuidv4();
@@ -59,11 +229,9 @@ async function createProject(req, res) {
         projectName = path.basename(uploadedFile.originalname, path.extname(uploadedFile.originalname));
       }
 
-      // Extract zip
       try {
         const zip = new AdmZip(uploadedFile.path);
         zip.extractAllTo(targetDir, true);
-        // Clean up temp upload
         fs.unlinkSync(uploadedFile.path);
       } catch (zipErr) {
         return res.status(400).json({ error: `Failed to extract zip archive: ${zipErr.message}` });
@@ -82,14 +250,9 @@ async function createProject(req, res) {
       }
     }
 
-    // Handle nested folder if zip contained an enclosing root folder
-    let effectiveDir = targetDir;
-    const contents = fs.readdirSync(targetDir);
-    if (contents.length === 1 && fs.statSync(path.join(targetDir, contents[0])).isDirectory()) {
-      effectiveDir = path.join(targetDir, contents[0]);
-    }
+    // Smart Monorepo & Multi-Folder Resolution
+    const effectiveDir = findExpressServiceDir(targetDir);
 
-    // Validate project structure: Must contain package.json
     const packageJsonPath = path.join(effectiveDir, 'package.json');
     if (!fs.existsSync(packageJsonPath)) {
       return res.status(400).json({
@@ -97,19 +260,15 @@ async function createProject(req, res) {
       });
     }
 
-    // Read package info
     let pkg = {};
     try {
       pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
     } catch (e) {}
 
     const entryPoint = findEntryPoint(effectiveDir);
-
-    // Detect routes via AST
     const detectedRoutes = detectProjectRoutes(effectiveDir);
     console.log(`[ProjectController] Detected ${detectedRoutes.length} Express routes for ${projectName}`);
 
-    // Create Project record
     const project = new Project({
       name: projectName,
       sourceType,
@@ -120,30 +279,32 @@ async function createProject(req, res) {
       meta: {
         dependencies: pkg.dependencies || {},
         entryPoint,
-        fileCount: detectedRoutes.length
+        fileCount: detectedRoutes.length,
+        executionMode: 'sandboxed_container'
       }
     });
     await project.save();
 
-    // Create initial baseline Run
+    const profile = req.body.profile || 'load';
     const baselineRun = new Run({
       projectId: project._id,
       type: 'baseline',
+      executionMode: 'sandboxed_container',
       status: 'queued',
-      profile: req.body.profile || 'load'
+      profile
     });
     await baselineRun.save();
 
     project.baselineRunId = baselineRun._id;
     await project.save();
 
-    // Enqueue sandbox build & run job
     await enqueueSandboxJob({
       runId: baselineRun._id.toString(),
       projectId: project._id.toString(),
       projectDir: effectiveDir,
       entryPoint,
-      profile: baselineRun.profile
+      profile: baselineRun.profile,
+      executionMode: 'sandboxed_container'
     });
 
     res.status(201).json({
@@ -153,6 +314,148 @@ async function createProject(req, res) {
     });
   } catch (err) {
     console.error('[ProjectController] Error creating project:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * POST /api/projects/demo
+ */
+async function createDemoProject(req, res) {
+  try {
+    const sampleSrc = path.resolve(__dirname, '../../../samples/buggy-express-app');
+    const projectIdStr = `demo-${uuidv4().slice(0, 8)}`;
+    const targetDir = path.join(config.uploadDir, projectIdStr);
+    copyDirSync(sampleSrc, targetDir);
+
+    const detectedRoutes = detectProjectRoutes(targetDir);
+    const project = new Project({
+      name: 'Buggy Express Sample App (Demo)',
+      sourceType: 'zip',
+      sourcePath: targetDir,
+      status: 'analyzing',
+      detectedRoutes,
+      meta: {
+        entryPoint: 'server.js',
+        fileCount: detectedRoutes.length,
+        executionMode: 'sandboxed_container'
+      }
+    });
+    await project.save();
+
+    const profile = req.body.profile || 'load';
+    const baselineRun = new Run({
+      projectId: project._id,
+      type: 'baseline',
+      executionMode: 'sandboxed_container',
+      status: 'queued',
+      profile
+    });
+    await baselineRun.save();
+
+    project.baselineRunId = baselineRun._id;
+    await project.save();
+
+    await enqueueSandboxJob({
+      runId: baselineRun._id.toString(),
+      projectId: project._id.toString(),
+      projectDir: targetDir,
+      entryPoint: 'server.js',
+      profile,
+      executionMode: 'sandboxed_container'
+    });
+
+    res.status(201).json({
+      success: true,
+      project,
+      baselineRun
+    });
+  } catch (err) {
+    console.error('[ProjectController] Error creating demo project:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * POST /api/runs/:id/virtual-request
+ * Interactive virtual request runner allowing users to fire custom HTTP test calls
+ */
+async function sendVirtualRequest(req, res) {
+  try {
+    const { id: runId } = req.params;
+    const { method = 'GET', routePath = '/', body = null, headers = {} } = req.body;
+
+    const run = await Run.findById(runId);
+    if (!run) return res.status(404).json({ error: 'Run not found' });
+
+    const project = await Project.findById(run.projectId);
+    if (!project) return res.status(404).json({ error: 'Associated project not found' });
+
+    let targetBaseUrl = '';
+    let tempProbeRunId = null;
+
+    if (run.executionMode === 'direct_live_deployment') {
+      targetBaseUrl = project.liveUrl;
+    } else {
+      // Check if container/sandbox is currently running
+      if (run.containerInfo?.port) {
+        targetBaseUrl = `http://127.0.0.1:${run.containerInfo.port}`;
+      } else {
+        // Spin up temporary lightweight local probe
+        tempProbeRunId = `virtual-probe-${Date.now()}`;
+        const probeResult = await virtualRunner.startSandbox(
+          project.sourcePath,
+          tempProbeRunId,
+          project.meta?.entryPoint || 'server.js'
+        );
+        targetBaseUrl = probeResult.baseUrl;
+      }
+    }
+
+    let cleanPath = routePath.startsWith('/') ? routePath : `/${routePath}`;
+    cleanPath = cleanPath.replace(/:[a-zA-Z0-9_]+/g, '1');
+    const targetUrl = new URL(cleanPath, targetBaseUrl).toString();
+
+    const startTime = Date.now();
+    try {
+      const response = await axios({
+        method: method.toUpperCase(),
+        url: targetUrl,
+        headers: { 'Content-Type': 'application/json', ...headers },
+        data: body,
+        timeout: 10000,
+        validateStatus: () => true
+      });
+
+      const responseTimeMs = Date.now() - startTime;
+
+      if (tempProbeRunId) {
+        await virtualRunner.stopSandbox(tempProbeRunId);
+      }
+
+      res.json({
+        success: true,
+        targetUrl,
+        statusCode: response.status,
+        statusText: response.statusText,
+        responseTimeMs,
+        headers: response.headers,
+        data: response.data
+      });
+    } catch (reqErr) {
+      if (tempProbeRunId) {
+        await virtualRunner.stopSandbox(tempProbeRunId);
+      }
+
+      res.status(502).json({
+        success: false,
+        targetUrl,
+        error: reqErr.message,
+        responseTimeMs: Date.now() - startTime
+      });
+    }
+  } catch (err) {
+    console.error('[ProjectController] Error executing virtual request:', err);
     res.status(500).json({ error: err.message });
   }
 }
@@ -198,7 +501,6 @@ async function getProjectRuns(req, res) {
 
 /**
  * POST /api/projects/:id/baseline
- * Re-trigger baseline or alternate profile benchmark
  */
 async function triggerBaseline(req, res) {
   try {
@@ -207,10 +509,12 @@ async function triggerBaseline(req, res) {
 
     const profile = req.body.profile || 'load';
     const entryPoint = project.meta?.entryPoint || 'server.js';
+    const executionMode = project.meta?.executionMode || 'sandboxed_container';
 
     const newRun = new Run({
       projectId: project._id,
       type: 'baseline',
+      executionMode,
       status: 'queued',
       profile
     });
@@ -221,7 +525,9 @@ async function triggerBaseline(req, res) {
       projectId: project._id.toString(),
       projectDir: project.sourcePath,
       entryPoint,
-      profile
+      profile,
+      executionMode,
+      liveUrl: project.liveUrl
     });
 
     res.status(201).json({ success: true, run: newRun });
@@ -245,6 +551,9 @@ async function getRun(req, res) {
 
 module.exports = {
   createProject,
+  createDemoProject,
+  sendVirtualRequest,
+  findExpressServiceDir,
   listProjects,
   getProject,
   getProjectRuns,

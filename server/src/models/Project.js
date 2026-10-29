@@ -24,16 +24,20 @@ const ProjectSchema = new mongoose.Schema({
   },
   sourceType: {
     type: String,
-    enum: ['zip', 'github'],
+    enum: ['zip', 'github', 'live_url'],
     required: true
   },
   sourceUrl: {
     type: String,
     default: null
   },
+  liveUrl: {
+    type: String,
+    default: null
+  },
   sourcePath: {
     type: String,
-    required: true
+    default: null
   },
   status: {
     type: String,
@@ -59,7 +63,12 @@ const ProjectSchema = new mongoose.Schema({
       default: 'server.js'
     },
     fileCount: Number,
-    totalSizeBytes: Number
+    totalSizeBytes: Number,
+    executionMode: {
+      type: String,
+      enum: ['sandboxed_container', 'direct_live_deployment'],
+      default: 'sandboxed_container'
+    }
   },
   error: {
     type: String,

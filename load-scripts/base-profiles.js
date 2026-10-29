@@ -4,6 +4,21 @@
  */
 module.exports = {
   profiles: {
+    test: {
+      name: 'Quick Benchmark Test',
+      description: 'Rapid 5-second verification run for automated acceptance testing',
+      durationSeconds: 5,
+      targetVUs: 5,
+      k6Stages: [
+        { duration: '5s', target: 5 }
+      ],
+      autocannon: {
+        connections: 5,
+        duration: 5,
+        pipelining: 1
+      }
+    },
+
     load: {
       name: 'Standard Baseline Load',
       description: 'Simulates steady user traffic to establish typical baseline performance',

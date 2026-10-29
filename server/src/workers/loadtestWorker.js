@@ -14,44 +14,43 @@ function startLoadtestWorker() {
   const connection = createRedisConnection();
 
   loadtestWorkerInstance = new Worker('loadtest-queue', async (job) => {
-    const { runId, projectId, baseUrl, routes, profile = 'load' } = job.data;
-    console.log(`[LoadtestWorker] Starting load test for Run ${runId} at ${baseUrl} (Profile: ${profile})`);
+    const { runId, projectId, baseUrl, routes, profile = 'load', executionMode = 'sandboxed_container' } = job.data;
+    console.log(`[LoadtestWorker] Starting load test for Run ${runId} at ${baseUrl} (Profile: ${profile}, Mode: ${executionMode})`);
 
     try {
-      // 1. Update status
       await Run.findByIdAndUpdate(runId, { status: 'loadtesting' });
 
-      // 2. Execute load test
+      // Execute load test with capacity and NFR evaluation
       const result = await tester.executeLoadTest(
         runId,
         baseUrl,
         routes,
-        profile,
-        (progressState) => {
-          // Heartbeat/progress
-        }
+        profile
       );
 
-      // 3. Collect final resource usage from sandbox runner
-      const resourceStats = await runner.getResourceUsage(runId);
-      if (resourceStats.cpuPercent > 0) {
-        result.metrics.cpuAvgPercent = resourceStats.cpuPercent;
-      }
-      if (resourceStats.memoryMb > 0) {
-        result.metrics.memoryMaxMb = resourceStats.memoryMb;
+      // Collect resource usage if running in sandbox
+      if (executionMode !== 'direct_live_deployment') {
+        const resourceStats = await runner.getResourceUsage(runId);
+        if (resourceStats.cpuPercent > 0) {
+          result.metrics.cpuAvgPercent = resourceStats.cpuPercent;
+        }
+        if (resourceStats.memoryMb > 0) {
+          result.metrics.memoryMaxMb = resourceStats.memoryMb;
+        }
       }
 
-      // 4. Persist completed Run metrics
+      // Persist completed Run metrics, capacity, and NFR scorecard
       const updatedRun = await Run.findByIdAndUpdate(runId, {
         status: 'completed',
         metrics: result.metrics,
+        capacity: result.capacity,
+        nfrScorecard: result.nfrScorecard,
         rawMetrics: {
           scriptPath: result.scriptPath,
           executedAt: new Date()
         }
       }, { new: true });
 
-      // 5. Update Project status
       const project = await Project.findById(projectId);
       if (project) {
         if (!project.baselineRunId || updatedRun.type === 'baseline') {
@@ -61,12 +60,15 @@ function startLoadtestWorker() {
         await project.save();
       }
 
-      console.log(`[LoadtestWorker] Completed load test for Run ${runId}. p95=${result.metrics.p95}ms, RPS=${result.metrics.rps}, ErrorRate=${(result.metrics.errorRate * 100).toFixed(1)}%`);
+      console.log(`[LoadtestWorker] Completed load test for Run ${runId}.`);
+      console.log(`[LoadtestWorker] Capacity: MaxPeak=${result.capacity.maxPeakRps} RPS, Steady=${result.capacity.mediumSteadyRps} RPS, BreakingPoint=${result.capacity.breakingPointVus} VUs, Score=${result.nfrScorecard.overallScore}/100 (${result.nfrScorecard.verdict})`);
 
       return {
         success: true,
         runId,
-        metrics: result.metrics
+        metrics: result.metrics,
+        capacity: result.capacity,
+        nfrScorecard: result.nfrScorecard
       };
     } catch (err) {
       console.error(`[LoadtestWorker] Error during loadtest for run ${runId}:`, err);
@@ -76,13 +78,14 @@ function startLoadtestWorker() {
       });
       throw err;
     } finally {
-      // Clean up sandbox container/process after test run
-      console.log(`[LoadtestWorker] Tearing down sandbox for Run ${runId}`);
-      await runner.stopSandbox(runId);
+      if (executionMode !== 'direct_live_deployment') {
+        console.log(`[LoadtestWorker] Tearing down sandbox for Run ${runId}`);
+        await runner.stopSandbox(runId);
+      }
     }
   }, {
     connection,
-    concurrency: 1 // Sequential benchmark runs to prevent noisy-neighbor interference
+    concurrency: 1
   });
 
   loadtestWorkerInstance.on('completed', (job) => {

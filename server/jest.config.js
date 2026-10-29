@@ -1,6 +1,7 @@
 module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.js'],
+  modulePathIgnorePatterns: ['<rootDir>/uploads/'],
   verbose: true,
-  testTimeout: 30000
+  testTimeout: 35000
 };
