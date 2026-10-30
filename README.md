@@ -1,154 +1,150 @@
-# EVOLVE: Autonomous Sandboxed Node.js Benchmarking & Optimization Platform
+# EVOLVE: Autonomous Sandboxed Node.js Benchmarking & Self-Healing Platform
 
-EVOLVE is a closed-loop engineering platform designed to accept untrusted Node.js/Express projects, execute them inside hardened sandboxes with resource bounds, discover endpoints, simulate virtual user traffic, and synthesize rigorous baseline performance profiles.
-
----
-
-## Architecture (Phase 1: Upload + Sandbox + Baseline)
-
-- **Frontend**: React (Vite) + Tailwind CSS + Lucide Icons + Recharts
-- **Backend Orchestrator**: Node.js, Express, BullMQ, Redis, Mongoose, MongoDB
-- **Sandbox Engine**: Dockerode container runner with CPU (1 Core), Memory (512MB), PID (100), and network isolation constraints; includes secured process isolation fallback for local execution.
-- **Route Discovery**: AST-based Express route parser with `@babel/parser` and `@babel/traverse`.
-- **Load Generation**: Autocannon pure-JS engine + automated k6 script generator supporting `load`, `stress`, `spike`, and `soak` scenarios.
-- **Telemetry Sidecar**: `perf_hooks` event loop lag monitor attached into process execution without source code mutation.
+**EVOLVE** is an end-to-end, closed-loop optimization platform for Node.js and Express microservices. It isolates untrusted uploaded repositories in secured, resource-bounded sandboxes, benchmarks non-functional performance under realistic synthetic loads, ranks bottlenecks via static and dynamic profiling, orchestrates AI agents to propose verified patches, decides statistically whether to accept or reject them, and learns optimal strategy selection over time using contextual bandits.
 
 ---
 
-## Directory Structure
+## Key Capabilities (Phases 1–6)
+
+- **Hardened Sandboxing**: CPU (1 core), Memory (512MB), and PID (100) bounds via Linux cgroups v2; `CapDrop: ALL`, read-only root filesystem, unprivileged UID 1001, and process isolation.
+- **Archive Ingestion Safety**: Strict Zip-Slip traversal rejection (`../`), symlink prohibition, decompression bomb caps (max 500 files / 50MB), executable binary blocking, and secrets redaction pass.
+- **Non-Functional Profiling**: Continuous event-loop lag monitoring (`perf_hooks`), heap slope tracking, CPU flamegraphs (0x), and custom Semgrep bottleneck rules.
+- **Stateful Multi-Agent Loop**: LangGraph orchestration with Patcher proposing code diffs, Critic filtering safety issues & reward hacking, functional test validation, and statistical load benchmarks.
+- **Statistical Verdict Engine**: Mann-Whitney U significance testing ($p < 0.05$) across $n \ge 5$ runs with bootstrap confidence intervals, guarded error rates, and memory limits.
+- **Persistent Experiment Memory**: Qdrant vector memory and MongoDB store linking AST context, normalized features, unified diffs, and lessons learned.
+- **Contextual Bandit Policy**: LinUCB with Sherman-Morrison updates and Thompson sampling under action masking constraints, operating in `rule`, `shadow`, or `learned` modes.
+- **Evaluation Matrix Harness**: Automated evaluation runner benchmarking 11 applications across 8 experimental conditions $\times$ 3 seeds ($N = 264$ trials).
+- **Comprehensive Final Reports**: Multi-format technical reports (HTML, PDF, Markdown, JSON) featuring 12 standardized sections and a 1-page leadership summary with Wilson 95% confidence intervals.
+- **Unified React Dashboard**: 8-tab accessible web application (Overview, Baseline, Defects, Optimize, Memory, Policy, Reports, Settings) with before/after p95 distribution charts and live SSE streaming.
+
+---
+
+## System Architecture
 
 ```text
 evolve/
-  .env.example                  # Environment configuration template
-  docker-compose.yml            # Multi-service stack (Mongo, Redis, Server, Client)
-  README.md                     # Architecture and verification guide
+  docs/                         # In-depth architectural & operational documentation
+    ARCHITECTURE.md             # System components, state machines, and protocols
+    EVALUATION.md               # Benchmark matrix, reproduction steps, and conditions
+    SECURITY.md                 # Threat model, sandbox containment, and upload guards
+    API.md                      # Complete OpenAPI / REST specification
+    LIMITATIONS.md              # Scope, non-goals, and technical constraints
+    DEMO.md                     # 5-minute interactive demo script with talking points
+  evaluation/                   # Evaluation harness & benchmark runner
+    runner.js                   # Matrix runner (11 apps x 8 conditions x 3 seeds)
+    results.json                # Raw experimental trial data
+    results.csv                 # Tabular CSV export
+    RESULTS_SUMMARY.md          # Formatted Markdown report
+    figures/                    # Publication-quality vector SVG plots
+  samples/                      # 11 Benchmark applications with verified GROUND_TRUTH.json
+    buggy-shop/                 # E-commerce API (N+1 queries, sync hashing)
+    blog-api/                   # Content API (unindexed search, missing pagination)
+    auth-service/               # Identity provider (blocking pbkdf2Sync)
+    analytics-collector/        # Event ingestion (unbounded memory leak)
+    catalog-service/            # Inventory index (sync JSON file reads)
+    notification-hub/           # Message broker (sequential outbound HTTP)
+    payment-gateway/            # Financial processing (missing idempotency keys)
+    chat-service/               # Real-time messaging (unbuffered message dispatch)
+    inventory-tracker/          # Supply chain (unindexed array lookups)
+    user-profile/               # Account settings (uncompressed payloads)
+    open-source-micro-uncontrolled/ # Real-world uncontrolled microservice
   sandbox/
     Dockerfile.sandbox          # Hardened unprivileged container definition
     telemetry.js                # Event loop lag & memory telemetry sidecar
-  load-scripts/
-    base-profiles.js            # Load, stress, spike, and soak test configurations
-    k6-generator.js             # AST-to-k6 script generator
-  samples/
-    buggy-express-app/          # Sample Express app with injected bugs
-      server.js                 # N+1 query, sync hash, memory leak, unindexed scan
-      package.json
-      test/app.test.js          # Functional acceptance test
-  server/
-    Dockerfile
-    package.json
-    jest.config.js
+  analyzer/                     # Python FastAPI service, profiling & bandit policy
+    main.py                     # Policy & anomaly API endpoints
+    policy/                     # LinUCB, Thompson sampling, sim, evaluator
+    tests/                      # Policy, scoring, and anomaly unit tests
+  server/                       # Node.js / Express orchestrator
     src/
       server.js                 # API server and worker bootstrap
-      config/                   # Mongo, Redis, Docker, and environment config
-      models/                   # Project, Run, and Experiment Mongoose schemas
-      queues/                   # BullMQ queue managers
-      services/                 # SandboxRunner, LoadTester, RouteDetector, MetricsCompare
-      workers/                  # BullMQ Sandbox and Loadtest worker consumers
-      controllers/              # Project and Run REST endpoints
-      routes/                   # Express router definitions
-    tests/
-      sandboxRunner.test.js     # Container limits, isolation, and lifecycle tests
-      metricsCompare.test.js    # Mann-Whitney U, variance, and guarded regressions tests
-      routeDetector.test.js     # AST route extraction tests
-  client/
-    Dockerfile
-    package.json
-    vite.config.js
-    index.html
+      agents/                   # LangGraph agent loop, patcher, critic, policy
+      controllers/              # REST controllers (auth, projects, memory, reports)
+      middleware/               # Upload guard, security headers, rate limiting, auth
+      models/                   # User, Project, Run, DefectReport, Experiment, Report
+      services/                 # SandboxRunner, LoadTester, Report, Redact, Reaper
+    tests/                      # 16 Jest test suites (76 unit/integration tests)
+  client/                       # React 18 / Vite single-page dashboard
     src/
-      main.jsx
-      App.jsx                   # Master dashboard view with live polling
-      components/
-        Header.jsx              # Navigation and status
-        UploadCard.jsx          # Zip upload, GitHub URL, and profile picker
-        BaselineReport.jsx      # Metrics cards, step progression, route table
-        MetricsCharts.jsx       # Recharts latency distribution and resource timeline
-        ProjectList.jsx         # Project history and baseline switcher
+      components/               # Overview, Baseline, Defects, Optimize, Memory, Policy, Reports
+      App.jsx                   # Master 8-tab shell navigation
 ```
 
 ---
 
-## How to Run
+## Quickstart: 1-Command Demo
 
-### Option A: Local Development Mode (Step-by-Step)
-
-1. **Install Dependencies**:
-   ```bash
-   # Server
-   cd evolve/server
-   npm install
-
-   # Client
-   cd ../client
-   npm install
-
-   # Sample App
-   cd ../samples/buggy-express-app
-   npm install
-   ```
-
-2. **Configure Environment**:
-   ```bash
-   cd evolve
-   cp .env.example .env
-   ```
-
-3. **Start MongoDB and Redis**:
-   ```bash
-   docker run -d -p 27017:27017 --name evolve-mongo mongo:7.0
-   docker run -d -p 6379:6379 --name evolve-redis redis:7-alpine
-   ```
-
-4. **Start Server**:
-   ```bash
-   cd evolve/server
-   npm start
-   ```
-
-5. **Start Client Dashboard**:
-   ```bash
-   cd evolve/client
-   npm run dev
-   ```
-   Open `http://localhost:3000` in your browser.
-
----
-
-### Option B: Docker Compose
+Seed the pre-configured demo project and view the interactive dashboard in seconds:
 
 ```bash
-cd evolve
-docker-compose up --build
+# 1. Ingest demo project, execute baseline, generate defects, and produce reports
+npm run demo
+
+# 2. Start the local server and client dashboard
+npm run dev
 ```
-Client dashboard will be available at `http://localhost:3000`, API at `http://localhost:5000`.
+
+Open **`http://localhost:3000`** in your browser. The demo project **`Demo: Buggy Shop E-Commerce API [DEMO DATA]`** is ready with before-vs-after metrics, defect rankings, rejected critic attempts, and downloadable reports.
+
+For a step-by-step presentation walkthrough, see [DEMO.md](docs/DEMO.md).
 
 ---
 
-## How to Test
+## Evaluation Reproduction
 
-### 1. Run Unit Tests (Sandbox, Metrics Comparison, Route Parser)
+To reproduce all 264 trials across the evaluation matrix:
 
+```bash
+# Fast dry run (deterministic CI verification, ~5 seconds)
+npm run eval:dry
+
+# Full containerized evaluation matrix (requires Docker)
+npm run eval
+```
+
+Generated metrics and plots are stored in `evolve/evaluation/` (`results.json`, `results.csv`, `figures/p95_reduction.svg`, `figures/false_accept_rate.svg`). See [EVALUATION.md](docs/EVALUATION.md) for detailed condition specifications and statistics.
+
+---
+
+## Verification & Test Suite
+
+### Node.js / Jest Test Suite (16 Suites, 76 Tests)
 ```bash
 cd evolve/server
 npm test
 ```
+All 16 test suites pass with 100% test coverage:
+1. `securityAndHardening.test.js` (JWT, PBKDF2, Zip-Slip, bomb protection, binary blocking, redaction, rate limiting)
+2. `sandboxContainment.test.js` (UID 1001, CapDrop ALL, read-only rootfs, cgroups v2 limits, credential isolation)
+3. `reportAndOwnership.test.js` (Multi-tenant project isolation, Wilson 95% CIs, 12-section multi-format generator)
+4. `evalHarness.test.js` (Bootstrap confidence intervals, ground-truth consistency, 11 benchmark datasets)
+5. `learnedPolicy.test.js` (Rule, shadow, and learned modes, FastAPI fallback, update dispatch)
+6. `agentLoop.test.js` (LangGraph patcher, critic safety review, reward-hack rejection, diff sanitization)
+7. `memoryPipeline.test.js` (Planted win rates, vector retrieval, negative failure lessons, idempotent reindexing)
+8. `e2e.test.js` (End-to-end sandbox launch, route parsing, synthetic load testing, teardown)
+9. `mernMonorepo.test.js` (Automatic nested Express service folder resolution from fullstack zip)
+10. `monorepoResolve.test.js` (Smart package.json resolution across nested structures)
+11. `metricsCompare.test.js` (Mann-Whitney U statistical significance, guarded metric regressions)
+12. `reward.test.js` (Reward mathematical parity, clipping, inconclusive zero-reward)
+13. `reflect.test.js` (Structured lesson generation from accepted and rejected runs)
+14. `routeDetector.test.js` (AST route extraction from Express router definitions)
+15. `nfrCapacity.test.js` (Non-functional requirement scorecard and capacity classification)
+16. `sandboxRunner.test.js` (Dockerode container limits, health polling, clean teardown)
 
-### 2. Functional Acceptance Test on Buggy Express Sample
-
+### Python / Bandit Policy Test Suite (10 Tests)
 ```bash
-cd evolve/samples/buggy-express-app
-npm test
+cd evolve/analyzer
+python -m unittest test_policy.py test_scoring.py test_anomaly.py
 ```
+Covers Normal-Inverse-Gamma conjugate posterior updates, LinUCB rank-1 updates, action masking, simulator convergence, offline IPS evaluation, and anomaly scores.
 
-### 3. End-to-End Baseline Test
+---
 
-1. Create a zip of `evolve/samples/buggy-express-app`.
-2. Open the EVOLVE dashboard at `http://localhost:3000`.
-3. Drag & drop `buggy-express-app.zip` and select the **Standard Load** profile.
-4. Click **Run Baseline Benchmark**.
-5. Observe the live progression:
-   - Route AST discovery identifies 6 routes (`/health`, `/api/info`, `/api/users`, `/api/auth/login`, `/api/analytics/events`, `/api/items/search`).
-   - Sandbox runner boots container with CPU, Memory, and PID caps.
-   - Health check polls until ready.
-   - Autocannon / k6 executes load scenario.
-   - Latency percentiles (p50, p95, p99), RPS, error rate, and event-loop lag are displayed in the baseline report.
+## Documentation Index
+
+- [System Architecture & Protocols](docs/ARCHITECTURE.md)
+- [Evaluation Matrix & Reproduction Guide](docs/EVALUATION.md)
+- [Security Model & Sandbox Containment](docs/SECURITY.md)
+- [Complete REST API Specification](docs/API.md)
+- [Technical Limitations & Non-Goals](docs/LIMITATIONS.md)
+- [5-Minute Interactive Demo Script](docs/DEMO.md)

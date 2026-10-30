@@ -28,6 +28,7 @@ import {
   Play
 } from 'lucide-react';
 import MetricsCharts from './MetricsCharts';
+import InfoTooltip from './InfoTooltip';
 
 export default function BaselineReport({ project, run, onRebenchmark }) {
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'virtual' | 'capacity' | 'routes' | 'logs'
@@ -257,7 +258,10 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
         <div className="mt-5 p-4 rounded-xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/60">
             <div>
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Executive Health Verdict</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                Executive Health Verdict
+                <InfoTooltip term="capacity_classification" />
+              </span>
               <h3 className="text-sm font-bold text-white mt-0.5">{executiveVerdict}</h3>
               <p className="text-xs text-slate-400 mt-0.5">{executiveDescription}</p>
             </div>
@@ -273,28 +277,40 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3 pt-1">
             <div>
-              <span className="text-[11px] text-slate-500 block">Typical Speed</span>
+              <span className="text-[11px] text-slate-500 flex items-center">
+                Typical Speed
+                <InfoTooltip term="latency_p50" />
+              </span>
               <span className={`text-base font-bold ${speedColor}`}>
                 {avgResponseTime}ms <span className="text-xs font-normal text-slate-400">({speedLabel})</span>
               </span>
             </div>
 
             <div>
-              <span className="text-[11px] text-slate-500 block">Visitor Capacity</span>
+              <span className="text-[11px] text-slate-500 flex items-center">
+                Visitor Capacity
+                <InfoTooltip term="concurrency_limit" />
+              </span>
               <span className="text-base font-bold text-white">
                 ~{userCapacity} <span className="text-xs font-normal text-slate-400">simultaneous users</span>
               </span>
             </div>
 
             <div>
-              <span className="text-[11px] text-slate-500 block">Success Rate</span>
+              <span className="text-[11px] text-slate-500 flex items-center">
+                Success Rate
+                <InfoTooltip term="error_rate" />
+              </span>
               <span className="text-base font-bold text-emerald-400">
                 {successRate}% <span className="text-xs font-normal text-slate-400">success</span>
               </span>
             </div>
 
             <div>
-              <span className="text-[11px] text-slate-500 block">Overall Score</span>
+              <span className="text-[11px] text-slate-500 flex items-center">
+                Overall Score
+                <InfoTooltip term="nfr_scorecard" />
+              </span>
               <span className="text-base font-bold text-cyan-400 font-mono">
                 {nfrScorecard.overallScore || 80}/100
               </span>
@@ -361,7 +377,10 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-lg">
-              <span className="text-xs text-slate-400 block font-medium">Median Response Time</span>
+              <span className="text-xs text-slate-400 font-medium flex items-center">
+                Median Response Time
+                <InfoTooltip term="latency_p50" />
+              </span>
               <div className="text-2xl font-bold font-mono text-white mt-1">
                 {metrics.p50 || '--'} ms
               </div>
@@ -369,7 +388,10 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
             </div>
 
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-lg">
-              <span className="text-xs text-slate-400 block font-medium">Slowest 5% of Visits</span>
+              <span className="text-xs text-slate-400 font-medium flex items-center">
+                Slowest 5% of Visits
+                <InfoTooltip term="latency_p95" />
+              </span>
               <div className="text-2xl font-bold font-mono text-amber-400 mt-1">
                 {metrics.p95 || '--'} ms
               </div>
@@ -377,7 +399,10 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
             </div>
 
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-lg">
-              <span className="text-xs text-slate-400 block font-medium">Requests Handled</span>
+              <span className="text-xs text-slate-400 font-medium flex items-center">
+                Requests Handled
+                <InfoTooltip term="throughput" />
+              </span>
               <div className="text-2xl font-bold font-mono text-cyan-400 mt-1">
                 {metrics.rps ? `${metrics.rps}/sec` : '--'}
               </div>
@@ -385,7 +410,10 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
             </div>
 
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-lg">
-              <span className="text-xs text-slate-400 block font-medium">Memory Stability</span>
+              <span className="text-xs text-slate-400 font-medium flex items-center">
+                Memory Stability
+                <InfoTooltip term="heap_memory" />
+              </span>
               <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">
                 {metrics.memoryMaxMb ? `${metrics.memoryMaxMb} MB` : '--'}
               </div>
@@ -405,6 +433,7 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
               <h3 className="text-sm font-bold text-white flex items-center space-x-2">
                 <Send className="w-4 h-4 text-cyan-400" />
                 <span>Interactive Virtual Request Tester</span>
+                <InfoTooltip term="virtual_request" />
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 Send a real test request right now to any discovered route and inspect the live response.
@@ -510,7 +539,10 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-gradient-to-br from-slate-900 to-cyan-950/40 border border-cyan-800/60 rounded-2xl p-5 shadow-lg">
-              <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider block">Peak Surge Capacity</span>
+              <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center">
+                Peak Surge Capacity
+                <InfoTooltip term="peak_capacity" />
+              </span>
               <div className="text-3xl font-extrabold font-mono text-white mt-1">
                 {capacity.maxPeakRps || Math.round(metrics.rps * 1.35) || '--'} <span className="text-sm font-sans font-normal text-slate-400">requests/sec</span>
               </div>
@@ -520,7 +552,10 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
             </div>
 
             <div className="bg-gradient-to-br from-slate-900 to-emerald-950/40 border border-emerald-800/60 rounded-2xl p-5 shadow-lg">
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block">Safe Steady Traffic</span>
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center">
+                Safe Steady Traffic
+                <InfoTooltip term="steady_traffic" />
+              </span>
               <div className="text-3xl font-extrabold font-mono text-white mt-1">
                 {capacity.mediumSteadyRps || Math.round(metrics.rps) || '--'} <span className="text-sm font-sans font-normal text-slate-400">requests/sec</span>
               </div>
@@ -530,7 +565,10 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
             </div>
 
             <div className="bg-gradient-to-br from-slate-900 to-amber-950/40 border border-amber-800/60 rounded-2xl p-5 shadow-lg">
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block">Concurrency Limit</span>
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center">
+                Concurrency Limit
+                <InfoTooltip term="concurrency_limit" />
+              </span>
               <div className="text-3xl font-extrabold font-mono text-white mt-1">
                 ~{capacity.breakingPointVus || 40} <span className="text-sm font-sans font-normal text-slate-400">simultaneous users</span>
               </div>

@@ -211,11 +211,13 @@ function evaluateCandidateRun(baselineRuns, candidateRuns, functionalTestsPassed
   };
 
   if (!functionalTestsPassed) {
+    const summary = 'Functional unit/integration tests failed after patch application';
     return {
       verdict: 'rejected',
+      reason: summary,
       failureReason: {
         code: 'tests_failed',
-        summary: 'Functional unit/integration tests failed after patch application'
+        summary
       },
       comparison,
       baselineStats,
@@ -226,11 +228,13 @@ function evaluateCandidateRun(baselineRuns, candidateRuns, functionalTestsPassed
 
   // Guarded metrics check: error rate
   if (errorDelta > tolError) {
+    const summary = `Guarded metric errorRate regressed by +${(errorDelta * 100).toFixed(1)}% (tolerance: ${(tolError * 100)}%)`;
     return {
       verdict: 'rejected',
+      reason: summary,
       failureReason: {
         code: 'regression',
-        summary: `Guarded metric errorRate regressed by +${(errorDelta * 100).toFixed(1)}% (tolerance: ${(tolError * 100)}%)`
+        summary
       },
       comparison,
       baselineStats,
@@ -241,11 +245,13 @@ function evaluateCandidateRun(baselineRuns, candidateRuns, functionalTestsPassed
 
   // Guarded metrics check: memory
   if (memDeltaPct > tolMem * 100 && avgBaseMem > 0) {
+    const summary = `Guarded metric memory inflated by +${memDeltaPct}% (tolerance: +${(tolMem * 100)}%)`;
     return {
       verdict: 'rejected',
+      reason: summary,
       failureReason: {
         code: 'regression',
-        summary: `Guarded metric memory inflated by +${memDeltaPct}% (tolerance: +${(tolMem * 100)}%)`
+        summary
       },
       comparison,
       baselineStats,
@@ -263,8 +269,10 @@ function evaluateCandidateRun(baselineRuns, candidateRuns, functionalTestsPassed
   const meetsMinEffect = relativeLatencyReduction >= minEffect || effectSize >= 0.147;
 
   if (relativeLatencyReduction > 0 && isSignificant && meetsMinEffect) {
+    const summary = `Significant p95 reduction of ${(-p95DeltaPct).toFixed(1)}% (p=${mwu.pValue})`;
     return {
       verdict: 'accepted',
+      reason: summary,
       failureReason: { code: 'none', summary: '' },
       comparison,
       baselineStats,
@@ -272,11 +280,13 @@ function evaluateCandidateRun(baselineRuns, candidateRuns, functionalTestsPassed
       mwu
     };
   } else if (relativeLatencyReduction > 0 && (!isSignificant || !meetsMinEffect)) {
+    const summary = `Latency reduction (${(relativeLatencyReduction * 100).toFixed(1)}%) is within run-to-run noise (p=${mwu.pValue} >= ${alpha} or effect < ${minEffect})`;
     return {
       verdict: 'inconclusive',
+      reason: summary,
       failureReason: {
         code: 'noise',
-        summary: `Latency reduction (${(relativeLatencyReduction * 100).toFixed(1)}%) is within run-to-run noise (p=${mwu.pValue} >= ${alpha} or effect < ${minEffect})`
+        summary
       },
       comparison,
       baselineStats,
@@ -284,11 +294,13 @@ function evaluateCandidateRun(baselineRuns, candidateRuns, functionalTestsPassed
       mwu
     };
   } else {
+    const summary = `Candidate p95 latency (${candidateStats.mean}ms) was not better than baseline (${baselineStats.mean}ms)`;
     return {
       verdict: 'rejected',
+      reason: summary,
       failureReason: {
         code: 'no_improvement',
-        summary: `Candidate p95 latency (${candidateStats.mean}ms) was not better than baseline (${baselineStats.mean}ms)`
+        summary
       },
       comparison,
       baselineStats,

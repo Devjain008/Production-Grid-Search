@@ -11,6 +11,7 @@ import {
   Line,
   Legend
 } from 'recharts';
+import InfoTooltip from './InfoTooltip';
 
 export default function MetricsCharts({ metrics }) {
   if (!metrics) return null;
@@ -59,7 +60,10 @@ export default function MetricsCharts({ metrics }) {
       {/* Latency Percentiles Comparison */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 shadow-lg">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-slate-200">Latency Percentile Distribution (ms)</h3>
+          <h3 className="text-sm font-semibold text-slate-200 flex items-center">
+            <span>Latency Percentile Distribution (ms)</span>
+            <InfoTooltip term="latency_p95" />
+          </h3>
           <span className="text-xs text-slate-400 font-mono">Lower is better</span>
         </div>
         <div className="h-64">
@@ -78,7 +82,16 @@ export default function MetricsCharts({ metrics }) {
       {/* Latency & Resource Utilization Trend */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 shadow-lg">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-slate-200">Load Test Telemetry Timeline</h3>
+          <h3 className="text-sm font-semibold text-slate-200 flex items-center">
+            <span>Load Test Telemetry Timeline</span>
+            <InfoTooltip
+              title="Telemetry Timeline"
+              category="Resource & Stability"
+              definition="Real-time periodic sampling of response latency, CPU utilization percentage, and heap memory footprint recorded during the load simulation run."
+              impact="Detects CPU spikes, memory leaks, or event-loop starvation before they cause production server crashes."
+              target="Stable horizontal telemetry trends without upward memory slope."
+            />
+          </h3>
           <span className="text-xs text-slate-400 font-mono">Sampling Window</span>
         </div>
         <div className="h-64">

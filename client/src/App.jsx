@@ -6,13 +6,19 @@ import ProjectList from './components/ProjectList';
 import DefectsPage from './components/DefectsPage';
 import MemoryPage from './components/MemoryPage';
 import OptimizePage from './components/OptimizePage';
-import { Activity, AlertTriangle, Database, Zap } from 'lucide-react';
+import OverviewPage from './components/OverviewPage';
+import PolicyPage from './components/PolicyPage';
+import ReportsPage from './components/ReportsPage';
+import SettingsPage from './components/SettingsPage';
+import { 
+  BarChart2, Activity, AlertTriangle, Zap, Database, Target, FileText, Settings, ShieldCheck, RefreshCw 
+} from 'lucide-react';
 
 export default function App() {
   const [projects, setProjects] = useState([]);
   const [activeProject, setActiveProject] = useState(null);
   const [activeRun, setActiveRun] = useState(null);
-  const [activeNavTab, setActiveNavTab] = useState('baseline'); // 'baseline' | 'defects' | 'memory' | 'optimize'
+  const [activeNavTab, setActiveNavTab] = useState('overview'); // overview, baseline, defects, optimize, memory, policy, reports, settings
   const [isRefreshing, setIsRefreshing] = useState(false);
   const pollTimerRef = useRef(null);
 
@@ -70,6 +76,7 @@ export default function App() {
     setProjects([newProject, ...projects]);
     setActiveProject(newProject);
     setActiveRun(newRun);
+    setActiveNavTab('overview');
   };
 
   const handleSelectProject = (project) => {
@@ -98,8 +105,27 @@ export default function App() {
     }
   };
 
+  const handleProjectDeleted = (deletedId) => {
+    const remaining = projects.filter(p => p._id !== deletedId);
+    setProjects(remaining);
+    setActiveProject(remaining[0] || null);
+    setActiveRun(remaining[0]?.baselineRunId || null);
+    setActiveNavTab('overview');
+  };
+
+  const navItems = [
+    { id: 'overview', label: 'Overview', icon: BarChart2, color: 'text-sky-400', activeBg: 'bg-sky-500 text-black' },
+    { id: 'baseline', label: 'Baseline', icon: Activity, color: 'text-cyan-400', activeBg: 'bg-cyan-500 text-black' },
+    { id: 'defects', label: 'Defects & Profiling', icon: AlertTriangle, color: 'text-amber-400', activeBg: 'bg-amber-400 text-black' },
+    { id: 'optimize', label: 'Autonomous Agents', icon: Zap, color: 'text-emerald-400', activeBg: 'bg-emerald-400 text-black' },
+    { id: 'memory', label: 'Experience Memory', icon: Database, color: 'text-indigo-400', activeBg: 'bg-indigo-500 text-white' },
+    { id: 'policy', label: 'Policy Learning', icon: Target, color: 'text-purple-400', activeBg: 'bg-purple-500 text-white' },
+    { id: 'reports', label: 'Reports & Artifacts', icon: FileText, color: 'text-blue-400', activeBg: 'bg-blue-500 text-white' },
+    { id: 'settings', label: 'Settings', icon: Settings, color: 'text-slate-400', activeBg: 'bg-slate-700 text-white' }
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-950 flex flex-col font-sans text-slate-100">
       <Header
         activeProject={activeProject}
         onRefresh={fetchProjects}
@@ -112,58 +138,54 @@ export default function App() {
           <UploadCard onProjectCreated={handleProjectCreated} />
         </section>
 
-        {/* Global Navigation Tabs */}
-        <div className="flex items-center space-x-2 border-b border-slate-800 pb-2 overflow-x-auto">
-          <button
-            onClick={() => setActiveNavTab('baseline')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-              activeNavTab === 'baseline'
-                ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/10'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-            <span>Baseline & Testing</span>
-          </button>
-
-          <button
-            onClick={() => setActiveNavTab('defects')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-              activeNavTab === 'defects'
-                ? 'bg-amber-400 text-black shadow-md shadow-amber-400/10'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <AlertTriangle className="w-4 h-4" />
-            <span>Defects & Profiling</span>
-          </button>
-
-          <button
-            onClick={() => setActiveNavTab('memory')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-              activeNavTab === 'memory'
-                ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/10'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <Database className="w-4 h-4" />
-            <span>Experiment Memory</span>
-          </button>
-
-          <button
-            onClick={() => setActiveNavTab('optimize')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-              activeNavTab === 'optimize'
-                ? 'bg-emerald-400 text-black shadow-md shadow-emerald-400/10'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <Zap className="w-4 h-4" />
-            <span>Autonomous Agent Loop</span>
-          </button>
+        {/* Global Navigation Bar */}
+        <div className="flex items-center space-x-2 border-b border-slate-800 pb-3 overflow-x-auto scrollbar-thin">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeNavTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveNavTab(item.id)}
+                className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                  isActive
+                    ? `${item.activeBg} shadow-md`
+                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                }`}
+                aria-label={item.label}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? '' : item.color}`} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
 
+        {/* Project Switcher Bar if not in baseline tab */}
+        {projects.length > 1 && (
+          <div className="flex items-center space-x-2 text-xs bg-slate-900/60 border border-slate-800/80 px-4 py-2.5 rounded-xl overflow-x-auto">
+            <span className="text-slate-400 font-bold uppercase text-[10px] tracking-wider whitespace-nowrap">Active Project:</span>
+            {projects.map(p => (
+              <button
+                key={p._id}
+                onClick={() => handleSelectProject(p)}
+                className={`px-3 py-1 rounded-lg font-medium transition text-xs whitespace-nowrap ${
+                  activeProject?._id === p._id
+                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 font-bold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                {p.name} {p.isDemo ? '[DEMO]' : ''}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Content based on Active Tab */}
+        {activeNavTab === 'overview' && (
+          <OverviewPage project={activeProject} />
+        )}
+
         {activeNavTab === 'baseline' && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div className="lg:col-span-1 space-y-6">
@@ -174,9 +196,12 @@ export default function App() {
               />
 
               <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 text-xs space-y-2 text-slate-400">
-                <h4 className="font-semibold text-slate-200 uppercase tracking-wider text-[11px]">Sandbox Guarantees</h4>
+                <h4 className="font-semibold text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Sandbox Guarantees</span>
+                </h4>
                 <ul className="space-y-1 list-disc list-inside text-[11px] text-slate-400">
-                  <li>Untrusted execution boundary</li>
+                  <li>Isolated cgroups v2 container</li>
                   <li>Hard NanoCPUs limit (1 Core)</li>
                   <li>Memory bound at 512MB RAM</li>
                   <li>Anti-fork bomb (100 PIDs limit)</li>
@@ -200,17 +225,32 @@ export default function App() {
           <DefectsPage project={activeProject} />
         )}
 
+        {activeNavTab === 'optimize' && (
+          <OptimizePage project={activeProject} />
+        )}
+
         {activeNavTab === 'memory' && (
           <MemoryPage project={activeProject} />
         )}
 
-        {activeNavTab === 'optimize' && (
-          <OptimizePage project={activeProject} />
+        {activeNavTab === 'policy' && (
+          <PolicyPage project={activeProject} />
+        )}
+
+        {activeNavTab === 'reports' && (
+          <ReportsPage project={activeProject} />
+        )}
+
+        {activeNavTab === 'settings' && (
+          <SettingsPage 
+            project={activeProject} 
+            onProjectDeleted={handleProjectDeleted} 
+          />
         )}
       </main>
 
       <footer className="border-t border-slate-800 bg-slate-950/80 py-4 text-center text-xs text-slate-500">
-        EVOLVE Closed-Loop Performance Platform • Phases 1 - 4 Active
+        EVOLVE Autonomous Closed-Loop Optimization Platform &bull; Production Ready
       </footer>
     </div>
   );

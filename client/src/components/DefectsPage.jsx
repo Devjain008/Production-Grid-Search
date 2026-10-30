@@ -13,6 +13,7 @@ import {
   Zap,
   Play
 } from 'lucide-react';
+import InfoTooltip from './InfoTooltip';
 
 export default function DefectsPage({ project }) {
   const [report, setReport] = useState(null);
@@ -78,7 +79,8 @@ export default function DefectsPage({ project }) {
         <div>
           <h2 className="text-lg font-bold text-white flex items-center space-x-2">
             <AlertTriangle className="w-5 h-5 text-amber-400" />
-            <span>Defect Ranking & Hotspot Analysis</span>
+            <span>Defect Ranking &amp; Hotspot Analysis</span>
+            <InfoTooltip term="anomaly_score" />
           </h2>
           <p className="text-xs text-slate-400 mt-1">
             Fuses Static Analysis AST rules, V8 CPU Profiler hot frames, and Isolation Forest anomaly scores into an actionable suspicion list.
@@ -112,6 +114,13 @@ export default function DefectsPage({ project }) {
             <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
               <Flame className="w-4 h-4 text-orange-400" />
               <span>Interactive CPU Profiler Flamegraph</span>
+              <InfoTooltip
+                title="V8 CPU Flamegraph"
+                category="Static Analysis & Profiling"
+                definition="A graphical visualization of call stacks where the horizontal width represents the proportional CPU time spent inside each function."
+                impact="Immediately reveals CPU-bound functions and blocking loops that freeze the Node.js event loop."
+                target="Narrow call stacks without wide horizontal blocks."
+              />
             </span>
             <a
               href={`/api/projects/${project._id}/flamegraph`}
@@ -134,8 +143,14 @@ export default function DefectsPage({ project }) {
       {report && report.rankedDefects?.length > 0 ? (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
           <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-              Ranked Hotspots & Recommended Strategies ({report.rankedDefects.length})
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center">
+              <span>Ranked Hotspots &amp; Recommended Strategies ({report.rankedDefects.length})</span>
+              <InfoTooltip
+                title="Bottleneck Ranking Algorithm"
+                category="Static Analysis & Profiling"
+                definition="Multi-criteria sorting ordering code defects by multiplying static rule severity, CPU self-time hotness, and telemetry anomaly scores."
+                impact="Directs autonomous agents to resolve the most severe, high-ROI performance bugs first."
+              />
             </h3>
             <span className="text-xs font-mono text-slate-500">
               Weights: Static ({report.weights?.wStatic}) | Profile ({report.weights?.wProfile}) | Anomaly ({report.weights?.wAnomaly})
@@ -178,12 +193,20 @@ export default function DefectsPage({ project }) {
 
                     <div className="flex items-center space-x-3">
                       <div className="text-right">
-                        <div className="text-xs font-mono text-slate-400">Suspicion Score</div>
+                        <div className="text-xs font-mono text-slate-400 flex items-center justify-end">
+                          <span>Suspicion Score</span>
+                          <InfoTooltip
+                            title="Suspicion Score"
+                            category="Static Analysis & Profiling"
+                            definition="Normalized probability score indicating the likelihood and severity of this code location being the root cause of high latency or memory bloat."
+                          />
+                        </div>
                         <div className="text-sm font-bold font-mono text-amber-400">{(defect.score * 100).toFixed(1)}%</div>
                       </div>
 
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold uppercase border ${strategyColor}`}>
-                        {defect.suggestedStrategy}
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold uppercase border flex items-center ${strategyColor}`}>
+                        <span>{defect.suggestedStrategy}</span>
+                        <InfoTooltip term={`strategy_${defect.suggestedStrategy}`} />
                       </span>
 
                       {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
@@ -196,7 +219,10 @@ export default function DefectsPage({ project }) {
                       {/* Evidence Badges */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Static Analysis</span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold flex items-center">
+                            Static Analysis
+                            <InfoTooltip term="static_severity" />
+                          </span>
                           <div className="text-xs text-slate-300 mt-1">
                             {defect.evidence?.static?.length > 0 ? (
                               <span className="text-red-400 font-semibold">{defect.evidence.static[0].ruleId} (Sev: {defect.evidence.static[0].severity}/5)</span>
@@ -207,7 +233,10 @@ export default function DefectsPage({ project }) {
                         </div>
 
                         <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Profiler Hotness</span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold flex items-center">
+                            Profiler Hotness
+                            <InfoTooltip term="profiler_hotness" />
+                          </span>
                           <div className="text-xs text-slate-300 mt-1">
                             {defect.evidence?.profile ? (
                               <span className="text-orange-400 font-bold">{defect.evidence.profile.selfTimePercent}% CPU Self-Time</span>
@@ -218,7 +247,10 @@ export default function DefectsPage({ project }) {
                         </div>
 
                         <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Isolation Forest Anomaly</span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold flex items-center">
+                            Isolation Forest Anomaly
+                            <InfoTooltip term="anomaly_score" />
+                          </span>
                           <div className="text-xs text-slate-300 mt-1">
                             {defect.evidence?.anomaly ? (
                               <span className="text-amber-400 font-bold">Anomaly Score: {(defect.evidence.anomaly.anomalyScore * 100).toFixed(0)}%</span>

@@ -6,6 +6,7 @@ const Run = require('../models/Run');
 const DefectReport = require('../models/DefectReport');
 const Experiment = require('../models/Experiment');
 const User = require('../models/User');
+const Report = require('../models/Report');
 const { generateFinalReport } = require('../services/report');
 const config = require('../config');
 const { connectDB, disconnectDB } = require('../config/db');
@@ -13,6 +14,42 @@ const { connectDB, disconnectDB } = require('../config/db');
 async function seedDemoData() {
   console.log('[SeedDemo] Initializing EVOLVE demo dataset...');
   await connectDB();
+
+  // In-memory fallback if MongoDB is not running in local environment
+  const inMemoryStore = {
+    users: [],
+    projects: [],
+    runs: [],
+    defectReports: [],
+    experiments: [],
+    reports: []
+  };
+
+  if (mongoose.connection.readyState !== 1) {
+    console.warn('[SeedDemo] Notice: MongoDB not connected. Running in self-contained demo seed mode.');
+
+    User.findOne = async (q) => inMemoryStore.users.find(u => !q.email || u.email === q.email) || null;
+    User.prototype.save = async function() { inMemoryStore.users.push(this); return this; };
+
+    Project.deleteMany = async () => ({ deletedCount: 0 });
+    Project.findById = async (id) => inMemoryStore.projects.find(p => String(p._id) === String(id)) || null;
+    Project.prototype.save = async function() { inMemoryStore.projects.push(this); return this; };
+
+    Run.findById = async (id) => inMemoryStore.runs.find(r => String(r._id) === String(id)) || null;
+    Run.prototype.save = async function() { inMemoryStore.runs.push(this); return this; };
+
+    DefectReport.findOne = () => ({
+      sort: () => Promise.resolve(inMemoryStore.defectReports[inMemoryStore.defectReports.length - 1] || null)
+    });
+    DefectReport.prototype.save = async function() { inMemoryStore.defectReports.push(this); return this; };
+
+    Experiment.find = (filter) => ({
+      sort: () => Promise.resolve(inMemoryStore.experiments.filter(e => !filter?.projectId || String(e.projectId) === String(filter.projectId)))
+    });
+    Experiment.prototype.save = async function() { inMemoryStore.experiments.push(this); return this; };
+
+    Report.prototype.save = async function() { inMemoryStore.reports.push(this); return this; };
+  }
 
   // 1. Ensure Demo User
   let demoUser = await User.findOne({ email: 'demo@evolve.local' });

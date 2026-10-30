@@ -1,5 +1,5 @@
 # EVOLVE Empirical Evaluation Results
-**Generated**: 2026-10-29T20:27:39.048Z | **Status**: `[MOCK / DRY RUN]` | **Total Trials ($N$)**: 264
+**Generated**: 2026-10-29T20:56:23.222Z | **Status**: `[MOCK / DRY RUN]` | **Total Trials ($N$)**: 264
 **Benchmark Apps ($M$)**: 11 (analytics-collector, auth-service, blog-api, buggy-shop, catalog-service, chat-service, inventory-tracker, notification-hub, open-source-micro-uncontrolled, payment-gateway, user-profile)
 
 > [!IMPORTANT]
@@ -13,11 +13,11 @@
 ## 1. Primary Performance Comparison Across Conditions
 | Condition | Description | Relative P95 Reduction (%) [95% CI] | Accepted Patch Rate [95% CI] | False-Accept Rate (Held-Out) [95% CI] | Tokens / Accepted Patch | Bench Runs / Patch |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **B1** | Unit Tests Only (No Benchmarks) | **8.3%** [7.927, 8.707] | 87.9% | **38.5%** [HIGH RISK] | 1844 | 1.5 |
-| **B2** | Random Strategy + Full Validation | **16.1%** [15.673, 16.48] | 21.9% | 3.5% | 4434 | 5.5 |
-| **B3** | Greedy Strategy + Full Validation | **24%** [23.54, 24.37] | 41.8% | 4.5% | 2954 | 5.5 |
-| **FULL** | Rule-Based Policy (Full System) | **38.5%** [38.08, 38.87] | 67.9% | **2.5%** | 1844 | 5.5 |
-| **FULL+L** | **Learned Policy (Contextual Bandit)** | **43.7%** [43.25, 44.073] | **73.9%** | **2.0%** | **1567** | **5.5** |
+| **B1** | Unit Tests Only (No Benchmarks) | **8.3%** [7.897, 8.67] | 87.9% | **38.5%** [HIGH RISK] | 1844 | 1.5 |
+| **B2** | Random Strategy + Full Validation | **16.1%** [15.663, 16.52] | 21.9% | 3.5% | 4434 | 5.5 |
+| **B3** | Greedy Strategy + Full Validation | **24%** [23.587, 24.397] | 41.8% | 4.5% | 2954 | 5.5 |
+| **FULL** | Rule-Based Policy (Full System) | **38.5%** [38.06, 38.92] | 67.9% | **2.5%** | 1844 | 5.5 |
+| **FULL+L** | **Learned Policy (Contextual Bandit)** | **43.7%** [43.283, 44.08] | **73.9%** | **2.0%** | **1567** | **5.5** |
 
 ---
 

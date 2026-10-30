@@ -13,6 +13,7 @@ import {
   FileCode2,
   Filter
 } from 'lucide-react';
+import InfoTooltip from './InfoTooltip';
 
 export default function MemoryPage({ project }) {
   const [stats, setStats] = useState([]);
@@ -82,7 +83,8 @@ export default function MemoryPage({ project }) {
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <h2 className="text-lg font-bold text-white flex items-center space-x-2">
           <Database className="w-5 h-5 text-cyan-400" />
-          <span>Experiment Memory & Vector Store</span>
+          <span>Experiment Memory &amp; Vector Store</span>
+          <InfoTooltip term="vector_embeddings" />
         </h2>
         <p className="text-xs text-slate-400 mt-1 max-w-2xl">
           Stores structured experiment telemetry, raw run metrics, and dense semantic embeddings. Powers experience retrieval and Thompson sampling policy learning.
@@ -94,6 +96,12 @@ export default function MemoryPage({ project }) {
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-4 flex items-center space-x-2">
           <TrendingUp className="w-4 h-4 text-emerald-400" />
           <span>Strategy Win-Rate Heatmap Matrix</span>
+          <InfoTooltip
+            title="Strategy Win-Rate Heatmap"
+            category="AI & Learning"
+            definition="Empirical win rate (% accepted) and median reward [-1.0, 1.0] grouped by optimization strategy and defect category."
+            impact="Visualizes historical precedents so agents avoid known failures (e.g. caching write routes) and exploit proven winners (batching N+1 queries)."
+          />
         </h3>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -109,13 +117,17 @@ export default function MemoryPage({ project }) {
             return (
               <div key={i} className={`p-3 rounded-xl border ${bgClass} transition flex flex-col justify-between`}>
                 <div>
-                  <div className="text-[10px] uppercase font-bold tracking-wider opacity-75">{s.strategy}</div>
+                  <div className="text-[10px] uppercase font-bold tracking-wider opacity-75 flex items-center justify-between">
+                    <span>{s.strategy}</span>
+                    <InfoTooltip term={`strategy_${s.strategy}`} />
+                  </div>
                   <div className="text-[11px] font-mono text-slate-400 truncate">{s.category}</div>
                 </div>
 
                 <div className="mt-3">
-                  <div className="text-lg font-bold font-mono">
-                    {isLowSample ? 'N/A' : `${s.winRate}%`}
+                  <div className="text-lg font-bold font-mono flex items-center justify-between">
+                    <span>{isLowSample ? 'N/A' : `${s.winRate}%`}</span>
+                    {isLowSample && <InfoTooltip term="wilson_interval" title="Low Sample Size" definition="Fewer than 5 trials logged. More experiments needed before drawing statistically confident conclusions." />}
                   </div>
                   <div className="text-[10px] text-slate-500 font-mono mt-0.5">
                     n={s.n} | med r={s.medianReward}
@@ -131,8 +143,9 @@ export default function MemoryPage({ project }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
           <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40 flex-wrap gap-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-              Experiment History Timeline ({filteredExperiments.length})
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center">
+              <span>Experiment History Timeline ({filteredExperiments.length})</span>
+              <InfoTooltip term="failure_lessons" />
             </h3>
 
             <div className="flex items-center space-x-2">
@@ -179,23 +192,17 @@ export default function MemoryPage({ project }) {
                     selectedExp?._id === exp._id ? 'bg-slate-800/40 border-l-2 border-cyan-400' : ''
                   }`}
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-mono text-xs font-bold text-white">{exp.hotspot?.function}()</span>
-                      <span className="text-[11px] font-mono text-slate-500">{exp.hotspot?.file}:{exp.hotspot?.line}</span>
-                      <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
-                        {exp.strategy}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-slate-400 line-clamp-1 italic">
-                      "{exp.lesson || exp.failureReason?.summary || 'No takeaway'}"
-                    </p>
+                  <div className="flex items-center space-x-3">
+                    <span className="font-mono text-xs font-bold text-white">#{exp._id.substring(0, 6)}</span>
+                    <span className="text-xs font-mono text-cyan-400 uppercase font-bold">{exp.strategy}</span>
+                    <span className="text-xs text-slate-400 font-mono truncate max-w-[150px]">
+                      {exp.hotspot?.function || exp.hotspot?.file}
+                    </span>
                   </div>
 
                   <div className="flex items-center space-x-3">
-                    <span className="text-xs font-mono font-bold text-slate-300">
-                      r={exp.reward}
+                    <span className="text-xs font-mono text-slate-400">
+                      p95: {exp.comparison?.p95DeltaPct ? `${exp.comparison.p95DeltaPct}%` : '0%'}
                     </span>
 
                     <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase border ${verdictBadge}`}>
@@ -221,28 +228,38 @@ export default function MemoryPage({ project }) {
 
         {/* Selected Experiment Detail / Similar Cases Drawer */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-            Experiment Details & Lessons
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center">
+            <span>Experiment Details &amp; Lessons</span>
+            <InfoTooltip term="failure_lessons" />
           </h3>
 
           {selectedExp ? (
             <div className="space-y-4 text-xs font-mono">
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5">
-                <div className="text-slate-400 text-[10px] uppercase font-bold">Reusable Engineering Takeaway</div>
+                <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center">
+                  <span>Reusable Engineering Takeaway</span>
+                  <InfoTooltip term="failure_lessons" />
+                </div>
                 <div className="text-cyan-300 font-sans text-xs leading-relaxed">
                   {selectedExp.lesson || 'No lesson recorded.'}
                 </div>
               </div>
 
               <div className="space-y-1">
-                <div className="text-slate-400 text-[10px] uppercase font-bold">Metrics Comparison</div>
+                <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center">
+                  <span>Metrics Comparison</span>
+                  <InfoTooltip term="mann_whitney" />
+                </div>
                 <div className="text-slate-300">p95 Latency Delta: <strong className="text-emerald-400">{selectedExp.comparison?.p95DeltaPct || 0}%</strong></div>
                 <div className="text-slate-300">Throughput Delta: <strong className="text-cyan-400">{selectedExp.comparison?.rpsDeltaPct || 0}%</strong></div>
                 <div className="text-slate-300">Mann-Whitney p-value: <strong>{selectedExp.comparison?.mannWhitneyP || 1.0}</strong></div>
               </div>
 
               <div>
-                <div className="text-slate-400 text-[10px] uppercase font-bold mb-1">Unified Patch Diff</div>
+                <div className="text-slate-400 text-[10px] uppercase font-bold mb-1 flex items-center">
+                  <span>Unified Patch Diff</span>
+                  <InfoTooltip term="unified_diff" />
+                </div>
                 <pre className="bg-black p-3 rounded-xl border border-slate-800 text-[11px] text-slate-300 overflow-x-auto max-h-48">
                   {selectedExp.diff || 'No diff'}
                 </pre>
@@ -251,7 +268,10 @@ export default function MemoryPage({ project }) {
               {/* Similar Cases List */}
               {similarCases.length > 0 && (
                 <div className="pt-2 border-t border-slate-800 space-y-2">
-                  <div className="text-slate-400 text-[10px] uppercase font-bold">Top Retrieved Similar Cases</div>
+                  <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center">
+                    <span>Top Retrieved Similar Cases</span>
+                    <InfoTooltip term="vector_embeddings" />
+                  </div>
                   {similarCases.map((sim, idx) => (
                     <div key={idx} className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-[11px] space-y-0.5">
                       <div className="flex items-center justify-between">

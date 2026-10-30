@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generatedAt": "2026-10-29T20:27:39.048Z",
+    "generatedAt": "2026-10-29T20:56:23.222Z",
     "isDryRun": true,
     "modeLabel": "[MOCK / DRY RUN]",
     "seeds": [
@@ -31,15 +31,15 @@
       "p95ReductionPct": {
         "mean": 8.3,
         "ci95": [
-          7.927,
-          8.707
+          7.897,
+          8.67
         ]
       },
       "acceptedPatchRate": {
         "mean": 0.879,
         "ci95": [
           0.874,
-          0.884
+          0.883
         ]
       },
       "falseAcceptRate": {
@@ -72,14 +72,14 @@
       "p95ReductionPct": {
         "mean": 16.1,
         "ci95": [
-          15.673,
-          16.48
+          15.663,
+          16.52
         ]
       },
       "acceptedPatchRate": {
         "mean": 0.219,
         "ci95": [
-          0.213,
+          0.214,
           0.224
         ]
       },
@@ -101,7 +101,7 @@
         "mean": 0.843,
         "ci95": [
           0.833,
-          0.854
+          0.857
         ]
       },
       "tokensPerPatch": 4434,
@@ -113,14 +113,14 @@
       "p95ReductionPct": {
         "mean": 24,
         "ci95": [
-          23.54,
-          24.37
+          23.587,
+          24.397
         ]
       },
       "acceptedPatchRate": {
         "mean": 0.418,
         "ci95": [
-          0.414,
+          0.413,
           0.423
         ]
       },
@@ -154,14 +154,14 @@
       "p95ReductionPct": {
         "mean": 38.5,
         "ci95": [
-          38.08,
-          38.87
+          38.06,
+          38.92
         ]
       },
       "acceptedPatchRate": {
         "mean": 0.679,
         "ci95": [
-          0.673,
+          0.674,
           0.684
         ]
       },
@@ -195,8 +195,8 @@
       "p95ReductionPct": {
         "mean": 43.7,
         "ci95": [
-          43.25,
-          44.073
+          43.283,
+          44.08
         ]
       },
       "acceptedPatchRate": {
@@ -224,7 +224,7 @@
         "mean": 0.843,
         "ci95": [
           0.833,
-          0.857
+          0.854
         ]
       },
       "tokensPerPatch": 1567,
@@ -236,15 +236,15 @@
       "p95ReductionPct": {
         "mean": 33.1,
         "ci95": [
-          32.67,
-          33.57
+          32.647,
+          33.497
         ]
       },
       "acceptedPatchRate": {
         "mean": 0.559,
         "ci95": [
-          0.554,
-          0.563
+          0.553,
+          0.564
         ]
       },
       "falseAcceptRate": {
@@ -277,14 +277,14 @@
       "p95ReductionPct": {
         "mean": 35,
         "ci95": [
-          34.573,
-          35.4
+          34.56,
+          35.393
         ]
       },
       "acceptedPatchRate": {
         "mean": 0.619,
         "ci95": [
-          0.614,
+          0.613,
           0.624
         ]
       },
@@ -318,14 +318,14 @@
       "p95ReductionPct": {
         "mean": 37.3,
         "ci95": [
-          36.87,
+          36.897,
           37.663
         ]
       },
       "acceptedPatchRate": {
         "mean": 0.659,
         "ci95": [
-          0.653,
+          0.654,
           0.663
         ]
       },

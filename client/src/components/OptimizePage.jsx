@@ -13,6 +13,7 @@ import {
   Layers,
   ArrowRight
 } from 'lucide-react';
+import InfoTooltip from './InfoTooltip';
 
 const GRAPH_NODES = [
   'selectHotspot',
@@ -73,6 +74,7 @@ export default function OptimizePage({ project }) {
           <h2 className="text-lg font-bold text-white flex items-center space-x-2">
             <Zap className="w-5 h-5 text-cyan-400" />
             <span>Autonomous Agent Optimization Loop</span>
+            <InfoTooltip term="agent_loop" />
           </h2>
           <p className="text-xs text-slate-400 mt-1 max-w-2xl">
             LangGraph closed-loop agent team: Proposes patches for top defects, reviews code semantics via Critic, validates behavioral equivalence in sandboxes, benchmarks interleaved runs, and compounds accepted fixes.
@@ -94,7 +96,16 @@ export default function OptimizePage({ project }) {
       {/* Budget & Safety Controls */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
         <div>
-          <label className="block text-slate-400 mb-1 text-[11px] uppercase font-bold">Max Experiments Budget</label>
+          <label className="text-slate-400 mb-1 text-[11px] uppercase font-bold flex items-center">
+            <span>Max Experiments Budget</span>
+            <InfoTooltip
+              title="Experiment Budget"
+              category="AI & Learning"
+              definition="The maximum number of optimization attempts the agent team is allowed to execute before halting."
+              impact="Guards cloud compute costs and bounds loop execution time."
+              target="5 - 10 experiments per defect"
+            />
+          </label>
           <input
             type="number"
             value={maxExperiments}
@@ -105,7 +116,16 @@ export default function OptimizePage({ project }) {
         </div>
 
         <div>
-          <label className="block text-slate-400 mb-1 text-[11px] uppercase font-bold">Max LLM Token Budget</label>
+          <label className="text-slate-400 mb-1 text-[11px] uppercase font-bold flex items-center">
+            <span>Max LLM Token Budget</span>
+            <InfoTooltip
+              title="Token Budget"
+              category="AI & Learning"
+              definition="The total cumulative LLM input and output tokens allowed across Patcher and Critic agent calls."
+              impact="Prevents runaway model billing or infinite reasoning loops."
+              target="30,000 - 50,000 tokens"
+            />
+          </label>
           <input
             type="number"
             value={maxTokens}
@@ -116,7 +136,16 @@ export default function OptimizePage({ project }) {
         </div>
 
         <div>
-          <label className="block text-slate-400 mb-1 text-[11px] uppercase font-bold">Max Benchmark Runs</label>
+          <label className="text-slate-400 mb-1 text-[11px] uppercase font-bold flex items-center">
+            <span>Max Benchmark Runs</span>
+            <InfoTooltip
+              title="Benchmark Runs Limit"
+              category="AI & Learning"
+              definition="Maximum cumulative load-test benchmark executions permitted across all candidate comparisons."
+              impact="Ensures fast feedback turnaround without exhausting sandbox hardware."
+              target="25 - 50 runs"
+            />
+          </label>
           <input
             type="number"
             value={maxBenchRuns}
@@ -132,6 +161,7 @@ export default function OptimizePage({ project }) {
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-4 flex items-center space-x-2">
           <Layers className="w-4 h-4 text-cyan-400" />
           <span>LangGraph Agent State Machine</span>
+          <InfoTooltip term="critic_filter" title="LangGraph State Machine" definition="Sequential agent flow: selectHotspot -> retrieveSimilar -> patch -> critic -> validateAndBenchmark -> decide -> record." impact="Enforces peer review and statistical gating before any patch is accepted." />
         </h3>
 
         <div className="flex items-center justify-between overflow-x-auto pb-2 gap-2 text-center font-mono">
@@ -180,6 +210,7 @@ export default function OptimizePage({ project }) {
             >
               <FileCode2 className="w-4 h-4 text-emerald-400" />
               <span>Download optimized.patch</span>
+              <InfoTooltip term="unified_diff" />
             </a>
 
             <a

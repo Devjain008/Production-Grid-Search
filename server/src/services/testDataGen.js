@@ -1,6 +1,41 @@
 const crypto = require('crypto');
-const { faker } = require('@faker-js/faker');
 const { PERSONAS } = require('../../../load-scripts/personas/personas');
+
+// Built-in CommonJS Faker generator
+const faker = {
+  internet: {
+    userName: () => `user_${Math.random().toString(36).substring(7)}`,
+    email: () => `user_${Math.random().toString(36).substring(7)}@example.com`,
+    password: (opts = { length: 12 }) => `pass_${Math.random().toString(36).substring(2, opts.length || 12)}`
+  },
+  person: {
+    fullName: () => `Alex Morgan ${Math.floor(Math.random() * 1000)}`
+  },
+  helpers: {
+    arrayElement: (arr) => arr[Math.floor(Math.random() * arr.length)]
+  },
+  lorem: {
+    sentence: () => 'Autonomous test benchmark payload sentence.',
+    paragraph: () => 'Comprehensive stress test verification payload describing system behaviors.',
+    words: (n = 3) => Array.from({ length: n }, (_, i) => `word${i}`).join(' ')
+  },
+  number: {
+    int: (opts = { min: 1, max: 100 }) => Math.floor(Math.random() * (opts.max - opts.min + 1)) + opts.min
+  },
+  location: {
+    streetAddress: () => `${Math.floor(Math.random() * 900) + 100} Market Street, Suite 400`
+  },
+  commerce: {
+    productName: () => `Industrial Equipment SKU #${Math.floor(Math.random() * 10000)}`,
+    price: (opts = { min: 5, max: 500 }) => (opts.min + Math.random() * (opts.max - opts.min)).toFixed(2)
+  },
+  datatype: {
+    boolean: () => Math.random() > 0.5
+  },
+  word: {
+    sample: () => 'sample_entity'
+  }
+};
 
 /**
  * Generate realistic Faker-driven mock payloads based on route path and method

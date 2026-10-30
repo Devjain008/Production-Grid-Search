@@ -40,6 +40,8 @@ async function disconnectDB() {
 
 module.exports = {
   connectDB,
+  connectDb: connectDB,
   disconnectDB,
+  disconnectDb: disconnectDB,
   mongoose
 };
