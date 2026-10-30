@@ -69,8 +69,12 @@ const ProjectSchema = new mongoose.Schema({
   },
   meta: {
     dependencies: {
-      type: Map,
-      of: String
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({})
+    },
+    devDependencies: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({})
     },
     entryPoint: {
       type: String,

@@ -1,0 +1,121 @@
+/* EVOLVE Design Tokens - Production Grade 4px Grid & Okabe-Ito Palette */
+
+:root {
+  /* 4px Spacing Grid */
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Border Radii */
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Motion */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Okabe-Ito Colorblind-Safe Palette */
+  --chart-orange: #E69F00;
+  --chart-sky: #56B4E9;
+  --chart-bluish-green: #009E73;
+  --chart-yellow: #F0E442;
+  --chart-blue: #0072B2;
+  --chart-vermillion: #D55E00;
+  --chart-reddish-purple: #CC79A7;
+  --chart-charcoal: #333333;
+
+  /* Semantic Verdicts */
+  --verdict-accepted: #10b981;
+  --verdict-accepted-bg: rgba(16, 185, 129, 0.12);
+  --verdict-accepted-border: rgba(16, 185, 129, 0.3);
+
+  --verdict-rejected: #f43f5e;
+  --verdict-rejected-bg: rgba(244, 63, 94, 0.12);
+  --verdict-rejected-border: rgba(244, 63, 94, 0.3);
+
+  --verdict-inconclusive: #f59e0b;
+  --verdict-inconclusive-bg: rgba(245, 158, 11, 0.12);
+  --verdict-inconclusive-border: rgba(245, 158, 11, 0.3);
+
+  --verdict-errored: #a78bfa;
+  --verdict-errored-bg: rgba(167, 139, 250, 0.12);
+  --verdict-errored-border: rgba(167, 139, 250, 0.3);
+
+  --verdict-critic: #f97316;
+  --verdict-critic-bg: rgba(249, 115, 22, 0.12);
+  --verdict-critic-border: rgba(249, 115, 22, 0.3);
+
+  /* Honest Data Labels */
+  --label-real: #10b981;
+  --label-simulated: #0284c7;
+  --label-mock: #d97706;
+  --label-demo: #7c3aed;
+
+  /* Default Dark Mode Surface (WCAG AA Compliant >= 4.5:1) */
+  --bg-canvas: #060913;
+  --bg-card: #0c1222;
+  --bg-surface: #141e34;
+  --bg-elevated: #1a2744;
+  --border-subtle: #1e293b;
+  --border-default: #334155;
+  --border-strong: #475569;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --brand-primary: #4f46e5;
+  --brand-hover: #4338ca;
+  --brand-surface: rgba(79, 70, 229, 0.14);
+}
+
+/* Light Theme Variables */
+.theme-light {
+  --bg-canvas: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-surface: #f1f5f9;
+  --bg-elevated: #ffffff;
+  --border-subtle: #e2e8f0;
+  --border-default: #cbd5e1;
+  --border-strong: #94a3b8;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --brand-primary: #4338ca;
+  --brand-hover: #3730a3;
+  --brand-surface: rgba(67, 56, 202, 0.08);
+
+  --verdict-accepted-bg: #ecfdf5;
+  --verdict-rejected-bg: #fff1f2;
+  --verdict-inconclusive-bg: #fffbeb;
+  --verdict-errored-bg: #f5f3ff;
+  --verdict-critic-bg: #fff7ed;
+}
+
+/* Tabular Figures for All Metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

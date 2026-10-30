@@ -782,8 +782,7 @@ async function analyzeProject(req, res) {
 async function getProjectDefects(req, res) {
   try {
     const report = await DefectReport.findOne({ projectId: req.params.id }).sort({ createdAt: -1 });
-    if (!report) return res.status(404).json({ error: 'No defect report found for this project. Please run analysis first.' });
-    res.json({ success: true, defectReport: report });
+    res.json({ success: true, defectReport: report || null });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -795,8 +794,7 @@ async function getProjectDefects(req, res) {
 async function getProjectProfile(req, res) {
   try {
     const profile = await ProfileResult.findOne({ projectId: req.params.id }).sort({ createdAt: -1 });
-    if (!profile) return res.status(404).json({ error: 'No profile result found for this project.' });
-    res.json({ success: true, profileResult: profile });
+    res.json({ success: true, profileResult: profile || null });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

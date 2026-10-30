@@ -361,6 +361,10 @@ class OptimizationOrchestrator {
     const project = await Project.findById(projectId);
     if (!project) throw new Error('Project not found');
 
+    if (project.sourceType === 'live_url' || !project.sourcePath) {
+      throw new Error('Autonomous code patching requires a local codebase (Zip or Git repository). For live deployed websites, EVOLVE performs black-box load testing and capacity benchmarking.');
+    }
+
     const budget = {
       maxExperiments: customBudget.maxExperiments || parseInt(process.env.MAX_EXPERIMENTS, 10) || 5,
       maxTokens: customBudget.maxTokens || parseInt(process.env.MAX_LLM_TOKENS, 10) || 50000,

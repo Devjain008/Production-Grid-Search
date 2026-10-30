@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UploadCloud, Github, Globe, Play, AlertCircle, FileArchive, Zap, Sparkles, Check } from 'lucide-react';
+import InfoTooltip from './InfoTooltip';
 
 export default function UploadCard({ onProjectCreated }) {
   const [tab, setTab] = useState('zip'); // 'zip' | 'github' | 'live'
@@ -164,7 +165,10 @@ export default function UploadCard({ onProjectCreated }) {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-base font-bold text-white">Target Application Configuration</h2>
+          <h2 className="text-base font-bold text-white flex items-center gap-1.5">
+            <span>Target Application Configuration</span>
+            <InfoTooltip term="sandbox_containment" />
+          </h2>
           <p className="text-xs text-slate-400">
             {tab === 'live'
               ? 'Direct Online Mode: Probes live endpoints & benchmarks production infrastructure'
@@ -227,7 +231,10 @@ export default function UploadCard({ onProjectCreated }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Load Profile</label>
+            <div className="flex items-center space-x-1 mb-1">
+              <label className="text-xs font-semibold text-slate-300">Load Profile</label>
+              <InfoTooltip term="load_profile" />
+            </div>
             <select
               value={profile}
               onChange={(e) => setProfile(e.target.value)}

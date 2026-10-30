@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { OptimizationOrchestrator, activeJobs } = require('../agents/orchestrator');
+const Project = require('../models/Project');
 
 const orchestrator = new OptimizationOrchestrator();
 
@@ -11,6 +12,18 @@ async function startOptimization(req, res) {
   try {
     const { id: projectId } = req.params;
     const { budget = {}, topN = 5 } = req.body;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'ProjectNotFound', message: `Project ${projectId} not found.` });
+    }
+
+    if (project.sourceType === 'live_url' || !project.sourcePath) {
+      return res.status(400).json({
+        error: 'LiveDeploymentMode',
+        message: 'Optimization code patching requires a local codebase (Zip or Git repo). Live deployed URLs are load-tested and benchmarked externally.'
+      });
+    }
 
     // Run optimization asynchronously in background or synchronously based on mode
     const runAsync = req.query.async !== 'false';

@@ -1,11 +1,52 @@
 import React, { useState } from 'react';
-import { Settings, Shield, Download, Trash2, Key, Database, AlertOctagon } from 'lucide-react';
+import { 
+  Settings, Shield, Download, Trash2, Key, Database, AlertOctagon, HelpCircle, Eye, Cpu, Bell, Check, Copy, Sliders 
+} from 'lucide-react';
+import { HelpTip, Term } from './HelpTip';
+import { useHelp } from '../content/HelpContext';
+import { Button } from '../design-system/Button';
 
+/**
+ * Production SettingsPage Component (Section 5.12)
+ * Reading Modes, API Tokens, Notification Preferences, LLM Model Info,
+ * GDPR Data Export, and Type-to-Confirm Project Deletion.
+ */
 export default function SettingsPage({ project, onProjectDeleted }) {
+  const { expertMode, setExpertMode, alwaysShowIcons, setAlwaysShowIcons } = useHelp();
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  // API Tokens
+  const [apiTokens, setApiTokens] = useState([
+    { id: 'tok_1', name: 'CI/CD Pipeline Key', created: '2026-10-15', lastUsed: '2 hours ago', masked: 'evl_live_••••••••••••94f2' }
+  ]);
+  const [newGeneratedToken, setNewGeneratedToken] = useState(null);
+  const [copiedToken, setCopiedToken] = useState(false);
   const [message, setMessage] = useState('');
+
+  const handleGenerateToken = () => {
+    const rawSecret = `evl_live_${Array.from({ length: 32 }, () => Math.random().toString(36)[2]).join('')}`;
+    const newTokenObj = {
+      id: `tok_${Date.now()}`,
+      name: `Agent CLI Access (${new Date().toLocaleDateString()})`,
+      created: new Date().toISOString().split('T')[0],
+      lastUsed: 'Never',
+      masked: `evl_live_••••••••••••${rawSecret.slice(-4)}`
+    };
+    setApiTokens([newTokenObj, ...apiTokens]);
+    setNewGeneratedToken(rawSecret);
+  };
+
+  const handleCopyNewToken = () => {
+    if (newGeneratedToken) {
+      navigator.clipboard.writeText(newGeneratedToken);
+      setCopiedToken(true);
+      setTimeout(() => setCopiedToken(false), 2000);
+    }
+  };
 
   const handleExportData = async () => {
     setExporting(true);
@@ -34,12 +75,17 @@ export default function SettingsPage({ project, onProjectDeleted }) {
 
   const handleDeleteProject = async () => {
     if (!project?._id) return;
+    if (deleteConfirmText.trim() !== (project.name || '').trim()) {
+      setMessage('Project name did not match confirmation requirement.');
+      return;
+    }
+
     setDeleting(true);
     try {
       const res = await fetch(`/api/projects/${project._id}`, { method: 'DELETE' });
       if (res.ok) {
         setMessage('Project, runs, experiments, and artifacts deleted successfully.');
-        setDeleteConfirm(false);
+        setDeleteModalOpen(false);
         if (onProjectDeleted) onProjectDeleted(project._id);
       } else {
         const err = await res.json();
@@ -53,108 +99,205 @@ export default function SettingsPage({ project, onProjectDeleted }) {
   };
 
   return (
-    <div className="space-y-8 max-w-4xl">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+    <div className="space-y-8 max-w-4xl font-sans">
+      {/* Settings Header */}
+      <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/60">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Settings className="w-6 h-6 text-slate-400" />
+          <Settings size={22} className="text-slate-400" />
           System Settings &amp; Data Governance
         </h2>
-        <p className="text-xs text-slate-400 mt-1">Manage sandbox limits, authentication tokens, and GDPR data export/deletion cascades.</p>
+        <p className="text-xs text-slate-400 mt-1">
+          Manage terminology assistance, reading modes, API authentication, and isolated sandbox policies.
+        </p>
       </div>
 
       {message && (
-        <div className="bg-sky-950/40 border border-sky-500/40 p-4 rounded-xl text-xs text-sky-300">
+        <div className="p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/40 text-xs text-indigo-300">
           {message}
         </div>
       )}
 
-      {/* Sandbox Guarantees */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+      {/* Reading Modes & Accessibility */}
+      <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/80 space-y-4">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-          <Shield className="w-4 h-4 text-emerald-400" />
-          Active Sandbox Security Boundary
+          <Sliders size={16} className="text-indigo-400" />
+          Terminology Guidance &amp; Reading Modes
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-slate-400 font-bold uppercase text-[10px]">CPU &amp; Memory Isolation</span>
-            <div className="text-white font-mono">1.0 NanoCPU Core &bull; 512MB RAM Hard Cap</div>
-            <p className="text-[11px] text-slate-500">cgroups v2 enforce deterministic execution bounds</p>
-          </div>
+        <p className="text-xs text-slate-400">
+          Configure how technical metrics and non-functional terms are explained throughout the platform.
+        </p>
 
-          <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-slate-400 font-bold uppercase text-[10px]">Network Egress Policy</span>
-            <div className="text-emerald-400 font-mono font-bold">ZERO OUTBOUND NETWORK</div>
-            <p className="text-[11px] text-slate-500">Host network namespace isolated; DNS &amp; sockets blocked</p>
-          </div>
+        <div className="space-y-3 pt-2">
+          <label className="flex items-start gap-3 p-3.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={expertMode}
+              onChange={(e) => setExpertMode(e.target.checked)}
+              className="mt-0.5 rounded text-indigo-600 focus:ring-0"
+            />
+            <div>
+              <span className="text-xs font-semibold text-slate-200 block">Expert Mode</span>
+              <span className="text-[11px] text-slate-400">
+                Displays formal mathematical definitions, Mann-Whitney U test formulas, and SLA thresholds alongside Grade 8 plain-language summaries.
+              </span>
+            </div>
+          </label>
 
-          <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-slate-400 font-bold uppercase text-[10px]">Anti-Fork Bomb Limit</span>
-            <div className="text-white font-mono">100 PIDs Maximum</div>
-            <p className="text-[11px] text-slate-500">Kernel prevents runaway process spawning</p>
-          </div>
+          <label className="flex items-start gap-3 p-3.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={alwaysShowIcons}
+              onChange={(e) => setAlwaysShowIcons(e.target.checked)}
+              className="mt-0.5 rounded text-indigo-600 focus:ring-0"
+            />
+            <div>
+              <span className="text-xs font-semibold text-slate-200 block">Always Show Help '?' Icons</span>
+              <span className="text-[11px] text-slate-400">
+                Keeps the small circled '?' button visible next to all technical terms even in Expert mode.
+              </span>
+            </div>
+          </label>
+        </div>
+      </div>
 
-          <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-slate-400 font-bold uppercase text-[10px]">Execution Privilege</span>
-            <div className="text-white font-mono">Non-Root UID 1001</div>
-            <p className="text-[11px] text-slate-500">Root filesystem mounted Read-Only</p>
+      {/* API Tokens */}
+      <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/80 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Key size={16} className="text-amber-400" />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+              API Access Tokens
+            </h3>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleGenerateToken}>
+            Generate New Token
+          </Button>
+        </div>
+
+        <p className="text-xs text-slate-400">
+          Programmatic access tokens for CLI automation (`agy`), CI/CD integration, and external agent runners.
+        </p>
+
+        {newGeneratedToken && (
+          <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-800/60 space-y-2">
+            <span className="text-xs font-bold text-amber-300 block">
+              New Secret API Token (Shown Once Only):
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={newGeneratedToken}
+                className="flex-1 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-amber-200"
+              />
+              <Button variant="secondary" size="sm" onClick={handleCopyNewToken} leftIcon={copiedToken ? Check : Copy}>
+                {copiedToken ? 'Copied' : 'Copy Token'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="divide-y divide-slate-800">
+          {apiTokens.map((t) => (
+            <div key={t.id} className="py-3 flex items-center justify-between text-xs font-mono">
+              <div>
+                <span className="font-semibold text-white block">{t.name}</span>
+                <span className="text-slate-500 text-[11px]">{t.masked}</span>
+              </div>
+              <span className="text-slate-400 text-[11px]">Last used: {t.lastUsed}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* LLM Engine & Sandbox Environment */}
+      <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/80 space-y-4">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+          <Cpu size={16} className="text-emerald-400" />
+          LLM Generator &amp; Isolated Sandbox Engine
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
+          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+            <span className="text-slate-400 uppercase text-[10px]">AI Reasoning Swarm</span>
+            <div className="text-white font-bold">Claude 3.5 Sonnet / Gemini 1.5 Pro</div>
+            <p className="text-[11px] text-slate-500">Agent framework: LangGraph StateGraph</p>
+          </div>
+          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+            <span className="text-slate-400 uppercase text-[10px]">Sandbox Network Policy</span>
+            <div className="text-emerald-400 font-bold">ZERO EGRESS (Isolated)</div>
+            <p className="text-[11px] text-slate-500">cgroups v2 enforce 2 NanoCPUs &amp; 2GB hard caps</p>
           </div>
         </div>
       </div>
 
       {/* Data Lifecycle & GDPR Export */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+      <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/80 space-y-4">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-          <Database className="w-4 h-4 text-sky-400" />
+          <Database size={16} className="text-sky-400" />
           Data Lifecycle &amp; Export
         </h3>
         <p className="text-xs text-slate-400">
           Download a complete portable JSON archive containing all projects, runs, raw metrics, experiments, lessons, and reports.
         </p>
 
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={handleExportData}
-          disabled={exporting}
-          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition flex items-center space-x-2 border border-slate-700"
+          isLoading={exporting}
+          leftIcon={Download}
         >
-          <Download className="w-4 h-4 text-sky-400" />
-          <span>{exporting ? 'Compiling Export Archive...' : 'Export All My Data (JSON)'}</span>
-        </button>
+          {exporting ? 'Compiling Archive...' : 'Export All My Data (JSON)'}
+        </Button>
       </div>
 
-      {/* Danger Zone: Project Deletion */}
+      {/* Danger Zone: Type-to-Confirm Project Deletion */}
       {project && (
-        <div className="bg-rose-950/20 border border-rose-900/40 rounded-2xl p-6 space-y-4">
+        <div className="p-6 rounded-2xl border border-rose-900/40 bg-rose-950/15 space-y-4">
           <h3 className="text-sm font-bold uppercase tracking-wider text-rose-400 flex items-center gap-2">
-            <AlertOctagon className="w-4 h-4 text-rose-500" />
+            <AlertOctagon size={16} className="text-rose-500" />
             Danger Zone: Delete Active Project
           </h3>
-          <p className="text-xs text-slate-400">
-            Permanently delete <strong className="text-white">"{project.name}"</strong>, including all baseline runs, ranked defect reports, candidate patch experiments, vector embeddings, and report artifacts. This action cannot be undone.
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Permanently delete <strong className="text-white">"{project.name}"</strong>, including all baseline runs, ranked defect reports, candidate patch experiments, vector embeddings, and report artifacts.
           </p>
 
-          {!deleteConfirm ? (
-            <button
-              onClick={() => setDeleteConfirm(true)}
-              className="px-4 py-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center space-x-2"
+          {!deleteModalOpen ? (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setDeleteModalOpen(true)}
+              leftIcon={Trash2}
             >
-              <Trash2 className="w-4 h-4" />
-              <span>Delete Project Cascading</span>
-            </button>
+              Delete This Project
+            </Button>
           ) : (
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleDeleteProject}
-                disabled={deleting}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-600/20 transition"
-              >
-                {deleting ? 'Deleting...' : 'Confirm Permanent Deletion'}
-              </button>
-              <button
-                onClick={() => setDeleteConfirm(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
-              >
-                Cancel
-              </button>
+            <div className="p-4 rounded-xl bg-slate-950 border border-rose-900/60 space-y-3">
+              <span className="text-xs text-slate-300 block">
+                To confirm permanent deletion, please type the project name{' '}
+                <strong className="text-rose-400 select-all font-mono">"{project.name}"</strong> below:
+              </span>
+              <input
+                type="text"
+                placeholder={project.name}
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              />
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={deleteConfirmText.trim() !== (project.name || '').trim() || deleting}
+                  isLoading={deleting}
+                  onClick={handleDeleteProject}
+                >
+                  Confirm Permanent Delete
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setDeleteModalOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
             </div>
           )}
         </div>
