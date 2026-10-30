@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const path = require('path');
 const config = require('./config');
 const { connectDB, disconnectDB } = require('./config/db');
@@ -12,8 +13,16 @@ const apiRoutes = require('./routes/api');
 
 const app = express();
 
+app.set('etag', 'strong');
 app.use(helmetSecurityHeaders);
 app.use(cors());
+
+// Enable Gzip/Deflate compression for all responses > 1KB
+app.use(compression({
+  threshold: 1024,
+  level: 6
+}));
+
 app.use(createRateLimiter({ max: 300, windowMs: 60 * 1000 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

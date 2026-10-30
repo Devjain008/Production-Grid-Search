@@ -19,6 +19,7 @@
     "autocannon": "^7.15.0",
     "axios": "^1.6.8",
     "bullmq": "^5.7.9",
+    "compression": "^1.8.2",
     "cors": "^2.8.5",
     "dockerode": "^4.0.2",
     "dotenv": "^16.4.5",

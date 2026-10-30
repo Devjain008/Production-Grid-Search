@@ -173,10 +173,13 @@ async function listExperiments(req, res) {
     const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
     const total = await Experiment.countDocuments(query);
     const experiments = await Experiment.find(query)
+      .select('-__v')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit, 10));
+      .limit(parseInt(limit, 10))
+      .lean();
 
+    res.set('Cache-Control', 'private, max-age=15');
     res.json({
       success: true,
       total,
@@ -295,6 +298,7 @@ async function getMemoryStats(req, res) {
       };
     });
 
+    res.set('Cache-Control', 'private, max-age=30');
     res.json({
       success: true,
       totalExperiments: experiments.length,

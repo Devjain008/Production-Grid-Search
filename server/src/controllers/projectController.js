@@ -23,6 +23,7 @@ const TestDataSet = require('../models/TestDataSet');
 const DefectReport = require('../models/DefectReport');
 
 const { validateUploadZip } = require('../middleware/uploadGuard');
+const { extractZipSafely } = require('../utils/zipUtils');
 const Experiment = require('../models/Experiment');
 const Report = require('../models/Report');
 
@@ -295,8 +296,7 @@ async function createProject(req, res) {
 
       try {
         validateUploadZip(uploadedFile.path);
-        const zip = new AdmZip(uploadedFile.path);
-        zip.extractAllTo(targetDir, true);
+        extractZipSafely(uploadedFile.path, targetDir);
         fs.unlinkSync(uploadedFile.path);
       } catch (zipErr) {
         if (fs.existsSync(uploadedFile.path)) {
@@ -608,7 +608,17 @@ async function getProject(req, res) {
  */
 async function getProjectRuns(req, res) {
   try {
-    const runs = await Run.find({ projectId: req.params.id }).sort({ createdAt: -1 });
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const page = parseInt(req.query.page, 10) || 1;
+    const skip = (page - 1) * limit;
+
+    const runs = await Run.find({ projectId: req.params.id })
+      .select('-__v')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.set('Cache-Control', 'private, max-age=15');
     res.json(runs);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -781,7 +791,11 @@ async function analyzeProject(req, res) {
  */
 async function getProjectDefects(req, res) {
   try {
-    const report = await DefectReport.findOne({ projectId: req.params.id }).sort({ createdAt: -1 });
+    const report = await DefectReport.findOne({ projectId: req.params.id })
+      .select('-__v')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.set('Cache-Control', 'private, max-age=30');
     res.json({ success: true, defectReport: report || null });
   } catch (err) {
     res.status(500).json({ error: err.message });

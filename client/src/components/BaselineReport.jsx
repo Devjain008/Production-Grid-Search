@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity,
   CheckCircle2,
@@ -33,8 +33,66 @@ import InfoTooltip from './InfoTooltip';
 
 import { DEMO_BASELINE } from '../demo/demoData';
 
-export default function BaselineReport({ project, run, onRebenchmark }) {
-  const effectiveRun = run || DEMO_BASELINE;
+export default function BaselineReport({ project, run, onRebenchmark, onProjectNotFound }) {
+  const [fetchedRun, setFetchedRun] = useState(null);
+  const [loadingRun, setLoadingRun] = useState(false);
+
+  useEffect(() => {
+    if (!project) return;
+    if (project.isDemo || project._id?.startsWith('demo-')) {
+      setFetchedRun(DEMO_BASELINE);
+      return;
+    }
+
+    if (typeof run === 'object' && run !== null && run._id) {
+      setFetchedRun(run);
+      return;
+    }
+
+    const targetRunId = typeof run === 'string' ? run : project.baselineRunId;
+    if (targetRunId) {
+      setLoadingRun(true);
+      fetch(`/api/runs/${targetRunId}`)
+        .then(r => {
+          if (r.status === 404) {
+            return fetch(`/api/projects/${project._id}/runs`)
+              .then(pr => {
+                if (pr.status === 404) onProjectNotFound?.(project._id);
+                return pr.ok ? pr.json() : [];
+              })
+              .then(runsList => {
+                if (Array.isArray(runsList) && runsList.length > 0) {
+                  setFetchedRun(runsList[0]);
+                } else {
+                  setFetchedRun(null);
+                }
+              });
+          }
+          return r.ok ? r.json() : null;
+        })
+        .then(runDoc => {
+          if (runDoc) setFetchedRun(runDoc);
+        })
+        .catch(console.error)
+        .finally(() => setLoadingRun(false));
+    } else {
+      fetch(`/api/projects/${project._id}/runs`)
+        .then(r => {
+          if (r.status === 404) onProjectNotFound?.(project._id);
+          return r.ok ? r.json() : [];
+        })
+        .then(runsList => {
+          if (Array.isArray(runsList) && runsList.length > 0) {
+            setFetchedRun(runsList[0]);
+          } else {
+            setFetchedRun(null);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [project?._id, project?.baselineRunId, run]);
+
+  const effectiveRun = fetchedRun || (typeof run === 'object' && run ? run : null) || (project?.isDemo ? DEMO_BASELINE : null);
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'virtual' | 'capacity' | 'routes' | 'logs'
   const [selectedProfile, setSelectedProfile] = useState('load');
   const [isTriggering, setIsTriggering] = useState(false);
@@ -59,15 +117,43 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
     );
   }
 
-  const {
-    metrics = effectiveRun.summary || {},
-    capacity = effectiveRun.profiles?.stress || {},
-    nfrScorecard = {},
-    healthStatus = {},
-    containerInfo = {},
-    executionMode = 'sandboxed_container',
-    status = 'completed'
-  } = effectiveRun;
+  if (project && !effectiveRun && !loadingRun) {
+    return (
+      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-12 text-center text-slate-400 space-y-4">
+        <Server className="w-12 h-12 text-indigo-400 mx-auto" />
+        <div>
+          <h3 className="text-base font-bold text-white">No Baseline Benchmark for {project.name}</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
+            Execute a load test to measure p50/p95 latency, requests per second, and event loop lag under concurrency.
+          </p>
+        </div>
+        <button
+          onClick={async () => {
+            setIsTriggering(true);
+            try {
+              if (onRebenchmark) await onRebenchmark(selectedProfile);
+              else await fetch(`/api/projects/${project._id}/baseline`, { method: 'POST' });
+            } finally {
+              setIsTriggering(false);
+            }
+          }}
+          disabled={isTriggering}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lg transition"
+        >
+          <Play size={14} />
+          <span>{isTriggering ? 'Running Load Test (30s)...' : 'Run Baseline Benchmark Now'}</span>
+        </button>
+      </div>
+    );
+  }
+
+  const metrics = effectiveRun?.metrics || effectiveRun?.summary || {};
+  const capacity = effectiveRun?.capacity || effectiveRun?.profiles?.stress || {};
+  const nfrScorecard = effectiveRun?.nfrScorecard || {};
+  const healthStatus = effectiveRun?.healthStatus || {};
+  const containerInfo = effectiveRun?.containerInfo || {};
+  const executionMode = effectiveRun?.executionMode || 'sandboxed_container';
+  const status = effectiveRun?.status || 'completed';
 
   const handleCopyLogs = () => {
     const logs = containerInfo.runtimeLogs?.join('\n') || 'No logs captured.';
@@ -96,7 +182,14 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
     }
 
     try {
-      const res = await fetch(`/api/runs/${run._id}/virtual-request`, {
+      const targetRunId = effectiveRun?._id || (typeof run === 'string' ? run : null);
+      if (!targetRunId) {
+        setVirtualResponse({ success: false, error: 'No active benchmark run ID available.' });
+        setIsVirtualLoading(false);
+        return;
+      }
+
+      const res = await fetch(`/api/runs/${targetRunId}/virtual-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -221,7 +314,7 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
               <h2 className="text-lg font-bold text-white">{project.name}</h2>
               {getStatusBadge(status)}
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono uppercase">
-                {run.profile} TRAFFIC TEST
+                {effectiveRun?.profile || 'standard'} TRAFFIC TEST
               </span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono flex items-center space-x-1 ${
                 executionMode === 'direct_live_deployment'
@@ -233,7 +326,7 @@ export default function BaselineReport({ project, run, onRebenchmark }) {
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Evaluated: {new Date(run.createdAt).toLocaleTimeString()} • {project.detectedRoutes?.length || 0} discovered routes
+              Evaluated: {effectiveRun?.createdAt ? new Date(effectiveRun.createdAt).toLocaleTimeString() : 'Recent'} • {project?.detectedRoutes?.length || 0} discovered routes
             </p>
           </div>
 

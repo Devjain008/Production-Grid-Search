@@ -4,6 +4,7 @@ const AdmZip = require('adm-zip');
 const { generateToken, verifyToken } = require('../src/services/auth');
 const User = require('../src/models/User');
 const { validateUploadZip } = require('../src/middleware/uploadGuard');
+const { extractZipSafely } = require('../src/utils/zipUtils');
 const { redactString, redactObject } = require('../src/services/redact');
 const { createRateLimiter } = require('../src/middleware/security');
 
@@ -105,6 +106,20 @@ describe('EVOLVE Phase 6 Security & Hardening Suite', () => {
       const res = validateUploadZip(zipPath);
       expect(res.valid).toBe(true);
       expect(res.fileCount).toBe(2);
+    });
+
+    test('extractZipSafely unpacks valid zip archives completely', () => {
+      const zipPath = path.join(tempDir, 'extract_test.zip');
+      const outDir = path.join(tempDir, 'extracted_output');
+      const zip = new AdmZip();
+      zip.addFile('package.json', Buffer.from(JSON.stringify({ name: 'safe-extract' })));
+      zip.addFile('src/index.js', Buffer.from('console.log("running");'));
+      zip.writeZip(zipPath);
+
+      const result = extractZipSafely(zipPath, outDir);
+      expect(result.success).toBe(true);
+      expect(fs.existsSync(path.join(outDir, 'package.json'))).toBe(true);
+      expect(fs.existsSync(path.join(outDir, 'src', 'index.js'))).toBe(true);
     });
   });
 

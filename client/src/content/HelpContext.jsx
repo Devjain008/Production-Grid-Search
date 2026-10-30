@@ -25,6 +25,32 @@ export function HelpProvider({ children, onNavigateTab }) {
   // Active popover ID to guarantee ONLY ONE popover is open at any time
   const [activePopoverId, setActivePopoverId] = useState(null);
 
+  // Dark vs Light Theme
+  const [theme, setThemeState] = useState(() => {
+    try {
+      const stored = localStorage.getItem('evolve_theme');
+      if (stored) return stored;
+      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      localStorage.setItem('evolve_theme', theme);
+    } catch {}
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setThemeState(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
   // Current page tracking to support "Used on this page" glossary filtering
   const [currentPage, setCurrentPage] = useState('overview');
 
@@ -72,7 +98,9 @@ export function HelpProvider({ children, onNavigateTab }) {
         setActivePopoverId,
         currentPage,
         setCurrentPage,
-        navigateToGlossary
+        navigateToGlossary,
+        theme,
+        toggleTheme
       }}
     >
       {children}

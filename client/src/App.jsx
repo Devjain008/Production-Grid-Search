@@ -1,21 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Header from './components/Header';
-import LandingPage from './components/LandingPage';
-import AuthModal from './components/AuthModal';
-import NewProjectWizard from './components/NewProjectWizard';
-import BaselineReport from './components/BaselineReport';
-import ProjectList from './components/ProjectList';
-import DefectsPage from './components/DefectsPage';
-import MemoryPage from './components/MemoryPage';
-import OptimizePage from './components/OptimizePage';
-import OverviewPage from './components/OverviewPage';
-import PolicyPage from './components/PolicyPage';
-import ReportsPage from './components/ReportsPage';
-import SettingsPage from './components/SettingsPage';
-import GlossaryPage from './components/GlossaryPage';
-import ExperimentDrawer from './components/ExperimentDrawer';
+import { GuidedJourneyBar } from './components/GuidedJourneyBar';
 import { HelpTip, Term } from './components/HelpTip';
 import { HelpProvider, useHelp } from './content/HelpContext';
+import { TabSkeletonFallback } from './design-system/Skeleton';
 import { CommandPalette } from './design-system/CommandPalette';
 import { KeyboardHelpModal } from './design-system/KeyboardHelpModal';
 import { OnboardingTour } from './design-system/OnboardingTour';
@@ -23,6 +11,22 @@ import { DEMO_PROJECT, DEMO_EXPERIMENTS } from './demo/demoData';
 import { 
   BarChart2, Activity, AlertTriangle, Zap, Database, Target, FileText, Settings, ShieldCheck, RefreshCw, AlertCircle, BookOpen, Plus, Folder 
 } from 'lucide-react';
+
+// Code-split all main screens with React.lazy
+const OverviewPage = lazy(() => import('./components/OverviewPage'));
+const BaselineReport = lazy(() => import('./components/BaselineReport'));
+const DefectsPage = lazy(() => import('./components/DefectsPage'));
+const OptimizePage = lazy(() => import('./components/OptimizePage'));
+const MemoryPage = lazy(() => import('./components/MemoryPage'));
+const PolicyPage = lazy(() => import('./components/PolicyPage'));
+const ReportsPage = lazy(() => import('./components/ReportsPage'));
+const GlossaryPage = lazy(() => import('./components/GlossaryPage'));
+const SettingsPage = lazy(() => import('./components/SettingsPage'));
+const ProjectList = lazy(() => import('./components/ProjectList'));
+const NewProjectWizard = lazy(() => import('./components/NewProjectWizard'));
+const ExperimentDrawer = lazy(() => import('./components/ExperimentDrawer'));
+const LandingPage = lazy(() => import('./components/LandingPage'));
+const AuthModal = lazy(() => import('./components/AuthModal'));
 
 function AppContent() {
   const [showLanding, setShowLanding] = useState(false);
@@ -37,18 +41,18 @@ function AppContent() {
   const [selectedExperiment, setSelectedExperiment] = useState(null);
 
   // Data & Navigation State
-  const [projects, setProjects] = useState([DEMO_PROJECT]);
-  const [activeProject, setActiveProject] = useState(DEMO_PROJECT);
+  const [projects, setProjects] = useState([]);
+  const [activeProject, setActiveProject] = useState(null);
   const [activeRun, setActiveRun] = useState(null);
   const [activeNavTab, setActiveNavTab] = useState('overview'); // overview, baseline, defects, optimize, memory, policy, reports, settings, glossary
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [backendError, setBackendError] = useState(null);
-  const [isDemoMode, setIsDemoMode] = useState(true);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   // Running jobs tracking
   const [runningJobs, setRunningJobs] = useState([]);
 
-  const { expertMode, setExpertMode, setCurrentPage } = useHelp();
+  const { expertMode, setExpertMode, setCurrentPage, theme } = useHelp();
 
   // Sync current page with HelpContext for glossary "Used on this page"
   useEffect(() => {
@@ -70,7 +74,7 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Fetch all projects from backend or fallback to DEMO
+  // Fetch all projects from backend
   const fetchProjects = async () => {
     setIsRefreshing(true);
     try {
@@ -81,19 +85,35 @@ function AppContent() {
           setProjects(data);
           setBackendError(null);
           setIsDemoMode(false);
-          if (!activeProject || activeProject._id === DEMO_PROJECT._id) {
+
+          // Verify if activeProject still exists in fresh list from backend
+          const activeStillExists = activeProject && data.some(p => (p._id || p.id) === (activeProject._id || activeProject.id));
+          if (!activeStillExists || !activeProject) {
             setActiveProject(data[0]);
             if (data[0].baselineRunId) {
               setActiveRun(data[0].baselineRunId);
             }
+          } else {
+            const fresh = data.find(p => (p._id || p.id) === (activeProject._id || activeProject.id));
+            if (fresh) {
+              setActiveProject(fresh);
+              if (fresh.baselineRunId) setActiveRun(fresh.baselineRunId);
+            }
           }
+        } else {
+          setProjects([DEMO_PROJECT]);
+          setActiveProject(DEMO_PROJECT);
+          setIsDemoMode(true);
         }
       } else {
-        // Backend not returning projects, stay in demo mode gracefully
+        setProjects([DEMO_PROJECT]);
+        setActiveProject(DEMO_PROJECT);
         setIsDemoMode(true);
       }
     } catch (e) {
-      // Backend not running, operate in self-contained demo mode
+      console.warn('[EVOLVE] Backend unreachable; operating in self-contained demo mode:', e.message);
+      setProjects([DEMO_PROJECT]);
+      setActiveProject(DEMO_PROJECT);
       setIsDemoMode(true);
     } finally {
       setIsRefreshing(false);
@@ -105,9 +125,24 @@ function AppContent() {
   }, []);
 
   const handleSelectProject = (project) => {
+    if (!project) return;
     setActiveProject(project);
     if (project.baselineRunId) {
       setActiveRun(project.baselineRunId);
+    } else {
+      setActiveRun(null);
+    }
+  };
+
+  // Self-healing recovery if a child component reports a 404 for a deleted project
+  const handleProjectNotFound = (deletedId) => {
+    console.warn(`[EVOLVE] Project ${deletedId} was not found on backend. Falling back to active database project.`);
+    const remaining = projects.filter(p => (p._id || p.id) !== deletedId);
+    if (remaining.length > 0) {
+      setProjects(remaining);
+      handleSelectProject(remaining[0]);
+    } else {
+      fetchProjects();
     }
   };
 
@@ -140,32 +175,25 @@ function AppContent() {
     }
   };
 
-  const navItems = [
-    { id: 'overview', label: 'Overview', icon: Activity, color: 'text-indigo-400' },
-    { id: 'baseline', label: 'Baseline', icon: BarChart2, color: 'text-sky-400' },
-    { id: 'defects', label: 'Defects', icon: AlertTriangle, color: 'text-amber-400' },
-    { id: 'optimize', label: 'Optimize', icon: Zap, color: 'text-emerald-400' },
-    { id: 'memory', label: 'Memory', icon: Database, color: 'text-purple-400' },
-    { id: 'policy', label: 'Policy', icon: Target, color: 'text-rose-400' },
-    { id: 'reports', label: 'Reports', icon: FileText, color: 'text-blue-400' },
-    { id: 'glossary', label: 'Glossary', icon: BookOpen, color: 'text-indigo-300' },
-    { id: 'settings', label: 'Settings', icon: Settings, color: 'text-slate-400' }
-  ];
-
   if (showLanding) {
     return (
-      <LandingPage
-        onEnterDemo={handleEnterDemo}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-        onGoToDashboard={() => setShowLanding(false)}
-      />
+      <Suspense fallback={<TabSkeletonFallback />}>
+        <LandingPage
+          onEnterDemo={handleEnterDemo}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onGoToDashboard={() => setShowLanding(false)}
+        />
+      </Suspense>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30">
+    <div className={`min-h-screen ${theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-slate-100'} flex flex-col font-sans selection:bg-indigo-500/30 transition-colors duration-150`}>
       <Header
+        projects={projects}
         activeProject={activeProject}
+        onSelectProject={handleSelectProject}
+        onOpenWizard={() => setIsWizardOpen(true)}
         activeNavTab={activeNavTab}
         onRefresh={fetchProjects}
         isRefreshing={isRefreshing}
@@ -178,146 +206,131 @@ function AppContent() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Navigation Tabs Bar */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-2 overflow-x-auto">
-          <nav className="flex space-x-1 sm:space-x-2" role="tablist" aria-label="Main Navigation">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeNavTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => setActiveNavTab(item.id)}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium transition whitespace-nowrap ${
-                    isActive
-                      ? 'bg-indigo-600 text-white font-semibold shadow-sm shadow-indigo-950'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : item.color}`} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+        {/* Guided 4-Step Product Journey Bar */}
+        <GuidedJourneyBar
+          activeNavTab={activeNavTab}
+          onNavigateTab={(tab) => setActiveNavTab(tab)}
+          projectProgress={{
+            step: activeProject?.baselineRunId ? 2 : 1,
+            totalDefects: 3,
+            acceptedFixes: 2
+          }}
+        />
 
-          <button
-            onClick={() => setIsWizardOpen(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition shrink-0 ml-4 shadow-sm"
-          >
-            <Plus size={14} />
-            <span>New Project</span>
-          </button>
-        </div>
+        {/* Active Screen Content with Suspense & Zero Layout Shift */}
+        <Suspense fallback={<TabSkeletonFallback title="Loading section..." />}>
+          {activeNavTab === 'overview' && (
+            <OverviewPage
+              project={activeProject}
+              onOpenDrawer={handleOpenDrawer}
+              onNavigateOptimize={() => setActiveNavTab('optimize')}
+              onProjectNotFound={handleProjectNotFound}
+            />
+          )}
 
-        {/* Project Switcher Bar if multiple projects exist */}
-        {projects.length > 1 && activeNavTab !== 'glossary' && (
-          <div className="flex items-center space-x-2 text-xs bg-slate-900/60 border border-slate-800/80 px-4 py-2.5 rounded-xl overflow-x-auto">
-            <span className="text-slate-400 font-bold uppercase text-[10px] tracking-wider whitespace-nowrap">Active Project:</span>
-            {projects.map(p => (
-              <button
-                key={p._id}
-                onClick={() => handleSelectProject(p)}
-                className={`px-3 py-1 rounded-lg font-medium transition text-xs whitespace-nowrap ${
-                  activeProject?._id === p._id
-                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-bold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                }`}
-              >
-                {p.name} {p._id === DEMO_PROJECT._id ? '[DEMO]' : ''}
-              </button>
-            ))}
-          </div>
-        )}
+          {activeNavTab === 'baseline' && (
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+              <div className="lg:col-span-1 space-y-6">
+                <ProjectList
+                  projects={projects}
+                  selectedProjectId={activeProject?._id || activeProject?.id}
+                  onSelectProject={handleSelectProject}
+                />
+                <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 text-xs space-y-2 text-slate-400 shadow-sm">
+                  <h4 className="font-semibold text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Sandbox Guarantees</span>
+                    <HelpTip term="sandbox_containment" />
+                  </h4>
+                  <ul className="space-y-1 list-disc list-inside text-[11px] text-slate-400">
+                    <li>Isolated cgroups v2 container</li>
+                    <li>Hard NanoCPUs limit (2 Cores)</li>
+                    <li>Memory bound at 2GB RAM</li>
+                    <li>Anti-fork bomb (100 PIDs limit)</li>
+                    <li>Zero outbound Internet egress</li>
+                    <li>Non-root execution UID 1001</li>
+                  </ul>
+                </div>
+              </div>
 
-        {/* Active Screen Content */}
-        {activeNavTab === 'overview' && (
-          <OverviewPage
-            project={activeProject}
-            onOpenDrawer={handleOpenDrawer}
-          />
-        )}
-
-        {activeNavTab === 'baseline' && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <div className="lg:col-span-1 space-y-6">
-              <ProjectList
-                projects={projects}
-                selectedProjectId={activeProject?._id}
-                onSelectProject={handleSelectProject}
-              />
-              <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 text-xs space-y-2 text-slate-400">
-                <h4 className="font-semibold text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Sandbox Guarantees</span>
-                  <HelpTip term="sandbox_containment" />
-                </h4>
-                <ul className="space-y-1 list-disc list-inside text-[11px] text-slate-400">
-                  <li>Isolated cgroups v2 container</li>
-                  <li>Hard NanoCPUs limit (2 Cores)</li>
-                  <li>Memory bound at 2GB RAM</li>
-                  <li>Anti-fork bomb (100 PIDs limit)</li>
-                  <li>Zero outbound Internet egress</li>
-                  <li>Non-root execution UID 1001</li>
-                </ul>
+              <div className="lg:col-span-3">
+                <BaselineReport
+                  project={activeProject}
+                  run={activeRun}
+                  onRebenchmark={fetchProjects}
+                  onProjectNotFound={handleProjectNotFound}
+                />
               </div>
             </div>
+          )}
 
-            <div className="lg:col-span-3">
-              <BaselineReport
-                project={activeProject}
-                run={activeRun}
-                onRebenchmark={() => {}}
-              />
-            </div>
-          </div>
-        )}
+          {activeNavTab === 'defects' && (
+            <DefectsPage
+              project={activeProject}
+              onProjectNotFound={handleProjectNotFound}
+              onNavigateOptimize={() => setActiveNavTab('optimize')}
+            />
+          )}
 
-        {activeNavTab === 'defects' && (
-          <DefectsPage project={activeProject} />
-        )}
+          {activeNavTab === 'optimize' && (
+            <OptimizePage
+              projectId={activeProject?._id || activeProject?.id}
+              project={activeProject}
+              onOpenDrawer={handleOpenDrawer}
+              onProjectNotFound={handleProjectNotFound}
+            />
+          )}
 
-        {activeNavTab === 'optimize' && (
-          <OptimizePage
-            projectId={activeProject?._id}
-            onOpenDrawer={handleOpenDrawer}
-          />
-        )}
+          {activeNavTab === 'memory' && (
+            <MemoryPage
+              project={activeProject}
+              onProjectNotFound={handleProjectNotFound}
+            />
+          )}
 
-        {activeNavTab === 'memory' && (
-          <MemoryPage project={activeProject} />
-        )}
+          {activeNavTab === 'policy' && (
+            <PolicyPage
+              project={activeProject}
+              onProjectNotFound={handleProjectNotFound}
+            />
+          )}
 
-        {activeNavTab === 'policy' && (
-          <PolicyPage project={activeProject} />
-        )}
+          {activeNavTab === 'reports' && (
+            <ReportsPage
+              project={activeProject}
+              onProjectNotFound={handleProjectNotFound}
+            />
+          )}
 
-        {activeNavTab === 'reports' && (
-          <ReportsPage project={activeProject} />
-        )}
+          {activeNavTab === 'glossary' && (
+            <GlossaryPage />
+          )}
 
-        {activeNavTab === 'glossary' && (
-          <GlossaryPage />
-        )}
-
-        {activeNavTab === 'settings' && (
-          <SettingsPage 
-            project={activeProject} 
-            onProjectDeleted={() => fetchProjects()} 
-          />
-        )}
+          {activeNavTab === 'settings' && (
+            <SettingsPage 
+              project={activeProject} 
+              onProjectDeleted={() => fetchProjects()} 
+            />
+          )}
+        </Suspense>
       </main>
 
       <footer className="border-t border-slate-800 bg-slate-950/80 py-4 text-center text-xs text-slate-500 flex items-center justify-between max-w-7xl w-full mx-auto px-4">
-        <span>EVOLVE Autonomous Closed-Loop Optimization Platform &bull; Production Ready</span>
-        <button
-          onClick={() => setShowLanding(true)}
-          className="text-indigo-400 hover:text-indigo-300 text-xs"
-        >
-          View Landing Page
-        </button>
+        <span>EVOLVE Autonomous Closed-Loop Optimization Platform</span>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setIsOnboardingTourOpen(true)}
+            className="text-indigo-400 hover:text-indigo-300 text-xs font-medium"
+          >
+            Guided Tour
+          </button>
+          <button
+            onClick={() => setShowLanding(true)}
+            className="text-slate-400 hover:text-slate-300 text-xs"
+          >
+            Landing Page
+          </button>
+        </div>
       </footer>
 
       {/* Global Modals, Drawers & Palettes */}
@@ -325,10 +338,6 @@ function AppContent() {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         onNavigate={(tab) => { setActiveNavTab(tab); setIsCommandPaletteOpen(false); }}
-        onToggleExpertMode={() => setExpertMode(!expertMode)}
-        isExpertMode={expertMode}
-        onLoadDemo={handleEnterDemo}
-        onStartOptimize={() => { setActiveNavTab('optimize'); setIsCommandPaletteOpen(false); }}
       />
 
       <KeyboardHelpModal
@@ -336,41 +345,43 @@ function AppContent() {
         onClose={() => setIsKeyboardHelpOpen(false)}
       />
 
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
-
-      {isWizardOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto" role="dialog">
-          <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl my-8">
-            <NewProjectWizard
-              onCancel={() => setIsWizardOpen(false)}
-              onComplete={(newProj) => {
-                setProjects(prev => [newProj, ...prev]);
-                setActiveProject(newProj);
-                setIsWizardOpen(false);
-                setActiveNavTab('overview');
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      <ExperimentDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        experiment={selectedExperiment}
-        onNext={handleDrawerNext}
-        onPrev={handleDrawerPrev}
-        hasNext={true}
-        hasPrev={true}
-      />
-
       <OnboardingTour
         isOpen={isOnboardingTourOpen}
         onClose={() => setIsOnboardingTourOpen(false)}
+        onComplete={() => setIsOnboardingTourOpen(false)}
       />
+
+      <Suspense fallback={null}>
+        <ExperimentDrawer
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          experiment={selectedExperiment}
+          onNext={handleDrawerNext}
+          onPrev={handleDrawerPrev}
+          hasNext={Boolean(selectedExperiment)}
+          hasPrev={Boolean(selectedExperiment)}
+        />
+
+        {isWizardOpen && (
+          <NewProjectWizard
+            isOpen={isWizardOpen}
+            onClose={() => setIsWizardOpen(false)}
+            onProjectCreated={(newProj) => {
+              setIsWizardOpen(false);
+              fetchProjects();
+              handleSelectProject(newProj);
+              setActiveNavTab('baseline');
+            }}
+          />
+        )}
+
+        {isAuthModalOpen && (
+          <AuthModal
+            isOpen={isAuthModalOpen}
+            onClose={() => setIsAuthModalOpen(false)}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

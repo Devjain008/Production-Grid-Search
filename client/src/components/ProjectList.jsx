@@ -7,7 +7,7 @@ export default function ProjectList({ projects, selectedProjectId, onSelectProje
   }
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 shadow-lg">
+    <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 shadow-lg font-sans">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-slate-200 flex items-center space-x-2">
           <Layers className="w-4 h-4 text-cyan-400" />
@@ -17,14 +17,15 @@ export default function ProjectList({ projects, selectedProjectId, onSelectProje
       </div>
 
       <div className="space-y-2">
-        {projects.map((proj) => {
-          const isSelected = proj._id === selectedProjectId;
+        {projects.map((proj, idx) => {
+          const projKey = proj._id || proj.id || `proj-item-${idx}`;
+          const isSelected = (proj._id || proj.id) === selectedProjectId;
           const baselineRun = proj.baselineRunId;
           const p95 = baselineRun?.metrics?.p95;
 
           return (
             <div
-              key={proj._id}
+              key={projKey}
               onClick={() => onSelectProject(proj)}
               className={`p-3 rounded-lg border cursor-pointer transition flex items-center justify-between ${
                 isSelected
@@ -41,7 +42,7 @@ export default function ProjectList({ projects, selectedProjectId, onSelectProje
                   <div className="flex items-center space-x-2 text-[11px] text-slate-400 mt-0.5 font-mono">
                     <span>{proj.detectedRoutes ? proj.detectedRoutes.length : 0} routes</span>
                     <span>•</span>
-                    <span>{new Date(proj.createdAt).toLocaleDateString()}</span>
+                    <span>{proj.createdAt ? new Date(proj.createdAt).toLocaleDateString() : 'Active'}</span>
                   </div>
                 </div>
               </div>
